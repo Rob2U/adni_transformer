@@ -1,4 +1,4 @@
-""" Train a model on MNIST3D. """
+""" Train a model. """
 
 from argparse import ArgumentParser
 import os
@@ -107,14 +107,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_name",
         type=str,
-        default="LitBasicMLP",
-        help="LitBasicMLP or different model",
+        default="LitModel",
+        help="LitModel or different model",
     )
     # THIS LINE IS KEY TO PULL THE MODEL NAME
     temp_args, _ = parser.parse_known_args()
     # let the model add what it needs
-    if temp_args.model_name == "LitBasicMLP":
-        parser = LitBasicMLP.add_model_specific_args(parser)
+    if temp_args.model_name == "LitModel":
+        parser = LitModel.add_model_specific_args(parser)
+        parser = LitModel.add_model_specific_args(parser)
     # elif temp_args.model_name == "mnist":
     #    parser = LitMNIST.add_model_specific_args(parser)
     args = parser.parse_args()

@@ -1,4 +1,4 @@
-""" A basic MLP model for MNIST3D. """
+""" A basic model. """
 
 import lightning.pytorch as L
 import torch.nn as nn
@@ -7,40 +7,25 @@ import torch.nn.functional as F
 from config import INPUT_DIM, HIDDEN_DIM, OUTPUT_DIM, LEARNING_RATE, DROPOUT
 
 
-class BasicMLP(nn.Module):
-    """A basic MLP."""
+class aModel(nn.Module):
+    """A Model."""
 
     def __init__(
-        self, input_dim, hidden_dim, output_dim, dropout=0.0, **kwargs
+        self, **kwargs
     ):  #!you need to register new arguments for the parser!
         super().__init__()
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
-
-        self.linear_in = nn.Linear(self.input_dim, self.hidden_dim)
-        self.linear_out = nn.Linear(self.hidden_dim, self.output_dim)
-        self.activation = nn.ReLU()
-        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         """Forward pass."""
-
-        x = self.linear_in(x)
-        x = self.activation(x)
-        x = self.dropout(x)
-        x = self.linear_out(x)
-        x = self.activation(x)
-        x = F.softmax(x, dim=1)
         return x
 
 
-class LitBasicMLP(L.LightningModule):
-    """A basic MLP."""
+class LitModel(L.LightningModule):
+    """A lit Model."""
 
     def __init__(self, learning_rate=LEARNING_RATE, **kwargs):
         super().__init__()
-        self.model = BasicMLP(**kwargs)
+        self.model = aModel()(**kwargs)
         self.learning_rate = learning_rate
         self.save_hyperparameters()
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
@@ -49,17 +34,8 @@ class LitBasicMLP(L.LightningModule):
     def add_model_specific_args(parent_parser):
         """Adds model-specific arguments to the parser."""
 
-        parser = parent_parser.add_argument_group("LitBasicMLP")
-        parser.add_argument("--input_dim", type=int, default=INPUT_DIM)
-        parser.add_argument("--hidden_dim", type=int, default=HIDDEN_DIM)
-        parser.add_argument("--output_dim", type=int, default=OUTPUT_DIM)
-        parser.add_argument("--dropout", type=float, default=DROPOUT)
-        parser.add_argument(
-            "--learning_rate",
-            type=float,
-            default=LEARNING_RATE,
-            help="provides learning rate for the optimizer",
-        )
+        parser = parent_parser.add_argument_group("LitModel")
+        parser.add_argument("--learning_rate", type=float, default=LEARNING_RATE, help="provides learning rate for the optimizer")
         return parent_parser
 
     def forward(self, x, **kwargs):

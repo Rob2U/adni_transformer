@@ -1,4 +1,4 @@
-""" MNIST3D dataset module """
+""" dataset module """
 
 import lightning as L
 import torch
@@ -8,35 +8,25 @@ from torchvision.datasets import MNIST
 from config import BATCH_SIZE, NUM_WORKERS, DATA_DIR
 
 
-class To3D:
-    """Class for transforms that converts 2D images to 3D."""
-
-    def __init__(self) -> None:
-        # torch._C._log_api_usage_once(self)
+class aDataset(Dataset):
+    def __init__(self, root, train, download, transform):
+        super().__init__()
+        self.root = root
+        self.train = train
+        self.transform = transform
+        self.download = download    
+        
+    def __len__(self):
+        pass
+    
+    def __getitem__(self, index):
+        pass
+    
+    def __download__(self):
         pass
 
-    def __call__(self, x):
-        return x.expand((x.shape[0], x.shape[1], x.shape[1], x.shape[1]))
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}()"
-
-
-class Flatten:
-    """Class for transforms that flattens 3D images to 1D."""
-
-    def __init__(self) -> None:
-        # torch._C._log_api_usage_once(self)
-        pass
-
-    def __call__(self, x):
-        return torch.flatten(x)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}()"
-
-
-class MNIST3DModule(L.LightningDataModule):
+class aDataModule(L.LightningDataModule):
     """MNIST3D dataset module"""
 
     def __init__(self, data_dir, batch_size, num_workers, **kwargs):
@@ -57,26 +47,14 @@ class MNIST3DModule(L.LightningDataModule):
 
     # execute only on 1 GPU
     def prepare_data(self):
-        self.dataset(self.data_dir, train=True, download=True)
-        self.dataset(self.data_dir, train=False, download=True)
+        self.dataset(self.data_dir, train=True, download=Truem, transform=None)
+        self.dataset(self.data_dir, train=False, download=True, transform=None)
 
     # execute on every GPU
     def setup(self, stage):
-        test_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                To3D(),
-                Flatten(),
-            ]
-        )
-        # For training, we add some augmentation
-        train_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                To3D(),
-                Flatten(),
-            ]
-        )
+        test_transform = None
+        train_transform = None
+        
         # Loading the training dataset. We need to split it into a training and validation part
         # We need to do a little trick because the validation set should not use the augmentation.
         train_dataset = self.dataset(
