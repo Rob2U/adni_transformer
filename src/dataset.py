@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.utils.data import Dataset
-from config import BATCH_SIZE, NUM_WORKERS, DATA_DIR
+from config import BATCH_SIZE, NUM_WORKERS, DATA_DIR, META_FILE_PATH
 
 import os
 import numpy as np
@@ -13,21 +13,19 @@ import pandas as pd
 
 # 
 class ADNIDataset(Dataset):
-    def __init__(self, data_dir, meta_file, transform=None, train=False, download=False):
+    def __init__(self, data_dir, meta_file, transform=None):
         super().__init__()
         self.classes = ['CN', 'AD']
         self.data_dir = data_dir
-        self.train = train
         self.transform = transform
         
         self.data = pd.read_csv(meta_file) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         self.load_data() # then load the data from the .npy.npz files and reduce to relevant columns
         
-        assert(train == False and download == False)
-        
     def __len__(self):
-        len(self.data)
+        return len(self.data['DX'])
+        
     
     def __getitem__(self, index):
         lbl, img = self.data.iloc[index][['DX','data']]
@@ -75,9 +73,10 @@ class ADNIDataset(Dataset):
 class ADNIDataModule(L.LightningDataModule):
     """ADNI datamodule"""
 
-    def __init__(self, data_dir, batch_size, num_workers, **kwargs):
+    def __init__(self, data_dir, meta_file_path, batch_size, num_workers, **kwargs):
         super().__init__()
         self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.dataset = ADNIDataset
@@ -87,29 +86,29 @@ class ADNIDataModule(L.LightningDataModule):
         """Adds data-specific arguments to the parser."""
         parser = parent_parser.add_argument_group("ADNIDataModule")
         parser.add_argument("--data_dir", type=str, default=DATA_DIR)
+        parser.add_argument("--meta_file_path", type=str, default=META_FILE_PATH)
         parser.add_argument("--batch_size", type=int, default=BATCH_SIZE)
         parser.add_argument("--num_workers", type=int, default=NUM_WORKERS)
         return parent_parser
 
-    # execute on every GPU
+    # execute on single GPU
     def prepare_data(self):
-        self.dataset(self.data_dir, train=False, transform=None)
+        pass
 
     # execute on every GPU
-    #TODO: test
     def setup(self, stage):
         test_transform = None
         train_transform = None
         
         # Loading the training dataset. We need to split it into a training and validation part
         # We need to do a little trick because the validation set should not use the augmentation.
-        dataset = self.dataset(root=self.data_dir)
+        dataset = self.dataset(data_dir=self.data_dir, meta_file=self.meta_file_path, transform=train_transform)
         
-        len_train = len(dataset) * 10 // 8 # 80% of the dataset
+        len_train = len(dataset) * 8 // 10 # 80% of the dataset
         len_val = len_train * 1 // 10 # 10% of the training set
         
         L.seed_everything(42)
-        train_val_ds, self.test_ds = torch.utils.data.random_split(train_dataset, [len_train, len(dataset) - len_train])
+        train_val_ds, self.test_ds = torch.utils.data.random_split(dataset, [len_train, len(dataset) - len_train])
         self.train_ds, self.val_ds = torch.utils.data.random_split(train_val_ds, [len_train - len_val, len_val])
         
 
