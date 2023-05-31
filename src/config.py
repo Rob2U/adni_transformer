@@ -9,7 +9,7 @@ DATASET = "ADNI"
 
 # Training related constants
 LEARNING_RATE = 3e-5
-BATCH_SIZE = 8
+BATCH_SIZE = 2
 MIN_EPOCHS = 1
 MAX_EPOCHS = 2
 
@@ -22,7 +22,7 @@ TEST_FRACTION = 0.2
 DATA_DIR = "/dhc/groups/adni_transformer/adni_128_int/"
 META_FILE_PATH = "/dhc/groups/adni_transformer/adni_metadata/df_procAlex_MMSE.csv"
 NUM_WORKERS = (
-    1  # I had a problem with this because it was EXTREMLY slow, so I set it to 1
+    4  # I had a problem with this because it was EXTREMLY slow, so I set it to 1
 )
 
 # Compute related constants
