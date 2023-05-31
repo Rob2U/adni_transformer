@@ -9,6 +9,11 @@ BATCH_SIZE = 128
 MIN_EPOCHS = 1
 MAX_EPOCHS = 1
 
+# dataset  fractions
+TRAIN_FRACTION = 0.7
+VALIDATION_FRACTION = 0.1
+TEST_FRACTION = 0.2
+
 # Dataset related constants
 DATA_DIR = "/dhc/groups/adni_transformer/adni_128_int/"
 META_FILE_PATH = "/dhc/groups/adni_transformer/adni_metadata/df_procAlex_MMSE.csv"
