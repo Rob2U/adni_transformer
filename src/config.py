@@ -9,9 +9,9 @@ DATASET = "ADNI"
 
 # Training related constants
 LEARNING_RATE = 3e-5
-BATCH_SIZE = 128
+BATCH_SIZE = 8
 MIN_EPOCHS = 1
-MAX_EPOCHS = 1
+MAX_EPOCHS = 2
 
 # dataset  fractions
 TRAIN_FRACTION = 0.7

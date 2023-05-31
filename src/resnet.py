@@ -1,9 +1,10 @@
-import pytorch_lightning as L
+import lightning as L
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from monai.networks.nets import resnet18
+from config import LEARNING_RATE
 
 class ADNIResNet(nn.Module):
     def __init__(self, **kwargs):
@@ -19,7 +20,7 @@ class ADNIResNet(nn.Module):
 class LitADNIResNet(L.LightningModule):
     """A lit Model."""
 
-    def __init__(self, learning_rate=LEARNING_RATE, **kwargs):
+    def __init__(self, learning_rate, **kwargs):
         super().__init__()
         self.model = ADNIResNet(**kwargs).model
         self.learning_rate = learning_rate
@@ -30,7 +31,7 @@ class LitADNIResNet(L.LightningModule):
     def add_model_specific_args(parent_parser):
         """Adds model-specific arguments to the parser."""
 
-        parser = parent_parser.add_argument_group("LitModel")
+        parser = parent_parser.add_argument_group("LitADNIResNet")
         parser.add_argument("--learning_rate", type=float, default=LEARNING_RATE, help="provides learning rate for the optimizer")
         return parent_parser
 
