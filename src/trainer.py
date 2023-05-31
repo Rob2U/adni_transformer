@@ -17,7 +17,7 @@ class MyTrainer(L.Trainer):
             **kwargs: keyword arguments
         """
         super().__init__(
-            default_root_dir=os.path.join(CHECKPOINT_PATH, kwargs["root"]),
+            default_root_dir=os.path.join(kwargs["checkpoint_path"], kwargs["root"]),
             accelerator=kwargs["accelerator"],
             devices=kwargs["devices"],
             min_epochs=kwargs["min_epochs"],
@@ -48,5 +48,6 @@ class MyTrainer(L.Trainer):
         parser.add_argument("--min_epochs", type=int, default=MIN_EPOCHS)
         parser.add_argument("--max_epochs", type=int, default=MAX_EPOCHS)
         parser.add_argument("--enable_checkpointing", type=bool, default=True)
+        paser.add_argument("--checkpoint_path", type=str, default=CHECKPOINT_PATH)
         parser.add_argument("--log_model", type=bool, default=False)
         return parent_parser

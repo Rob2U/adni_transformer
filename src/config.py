@@ -3,6 +3,10 @@
 # Model related constants
 # ...
 
+
+# Dataset to use
+DATASET = "ADNI"
+
 # Training related constants
 LEARNING_RATE = 3e-5
 BATCH_SIZE = 128

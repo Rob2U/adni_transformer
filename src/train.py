@@ -6,18 +6,16 @@ import lightning as L
 import torch
 from dataset import MNIST3DModule
 from model import LitBasicMLP
-from config import ACCELERATOR, CHECKPOINT_PATH
 from pytorch_lightning.loggers import WandbLogger
 from trainer import MyTrainer
+from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 
 
-def get_model(**dict_args):
+def get_model(**kwargs):
     """Decides which model to use"""
 
-    if dict_args["model_name"] == "LitBasicMLP":
-        model = LitBasicMLP(**dict_args)
-    # elif args.model == "ResNet":
-    #   model = ResNet(**dict_args)
+    if kwargs["model_name"] == "LitBasicMLP":
+        model = LitBasicMLP(**kwargs)
     return model
 
 
@@ -41,10 +39,10 @@ def get_pretrained_model(pretrained_filename):
     return model
 
 
-def run_model(model, data, trainer, **dict_args):
+def run_model(model, data, trainer, **kwargs):
     """Tests a trained or loaded model."""
     pretrained_filename = os.path.join(
-        os.path.join(CHECKPOINT_PATH, dict_args["root"]),
+        os.path.join(kwargs["checkpoint_path"], kwargs["root"]),
         "3DMLP-epoch=00-val_loss=1.56.ckpt",
     )
     print("\n pretrained_filename:", pretrained_filename, "\n\n")
@@ -64,7 +62,7 @@ def main(args):
     dict_args = vars(args)
     model = get_model(**dict_args)
 
-    wandb_logger = WandbLogger(project="MNIST3D", log_model=dict_args["log_model"])
+    wandb_logger = WandbLogger(project="ADNI_xy", log_model=dict_args["log_model"])
     wandb_logger.log_hyperparams(
         {
             "batch_size": dict_args["batch_size"],
@@ -78,14 +76,14 @@ def main(args):
 
     checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
         monitor="val_loss",
-        dirpath=os.path.join(CHECKPOINT_PATH, dict_args["root"]),
+        dirpath=os.path.join(dict_args["checkpoint_path"], dict_args["root"]),
         filename=dict_args["root"] + "-{epoch:02d}-{val_loss:.2f}",
         save_top_k=1,
         mode="min",
     )
 
     trainer = MyTrainer(wandb_logger, callbacks=[checkpoint_callback], **dict_args)
-    data = MNIST3DModule(**dict_args)
+    data = ADNIDataModule(**dict_args)
     model, results = run_model(model, data, trainer, **dict_args)
     print(results)
 
@@ -97,12 +95,10 @@ if __name__ == "__main__":
     # Ensure that all operations are deterministic on GPU (if used) for reproducibility
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    print("Device:", ACCELERATOR)
 
     # beginn with parsing arguments
     parser = ArgumentParser()
     parser = MyTrainer.add_trainer_args(parser)
-    parser = MNIST3DModule.add_data_specific_args(parser)
     # figure out which model to use
     parser.add_argument(
         "--model_name",
