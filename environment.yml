@@ -1,0 +1,23 @@
+name: adni
+channels:
+  - nvidia # nvidia channel for cuda packages
+  - defaults
+dependencies:
+  - python 
+  - pytorch::pytorch 
+  - pytorch::pytorch-cuda # CUDA
+  - wandb
+  - lightning
+  - monai
+  - matplotlib
+  - torchvision
+  # pip dependencies
+  - pip
+
+#  with mamba
+  # create env with this file -> mamba env create -f environment.yml
+  # update env with this file -> mamba env update -n mml-research -f environment.yml --prune
+
+#  with conda
+  # create env with this file -> conda env create -f environment.yml
+  # update env with this file -> conda env update -n mml-research -f environment.yml --prune
