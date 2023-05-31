@@ -31,3 +31,6 @@ DEVICES = 1
 
 # Path to the folder where the pretrained models are saved
 CHECKPOINT_PATH = "/dhc/groups/adni_transformer/checkpoints/3D_Conv"
+
+# WANDB information
+WANDB_PROJECT = "ADNI_freestyle"
