@@ -83,9 +83,9 @@ class ADNIDataset(Dataset):
         patients = self.data['PTID'].unique()
         patients = np.random.permutation(patients)
         
-        train_fraction = kwargs["train_fraction"]
-        val_fraction = kwargs["val_fraction"]
-        test_fraction = kwargs["test_fraction"]
+        train_fraction = self.kwargs["train_fraction"]
+        val_fraction = self.kwargs["val_fraction"]
+        test_fraction = self.kwargs["test_fraction"]
         
 
         if self.split == 'train':
@@ -203,7 +203,7 @@ class ADNIDataModule(L.LightningDataModule):
         parser.add_argument("--num_workers", type=int, default=NUM_WORKERS)
         parser.add_argument("--dataset", type=str, default=DATASET)
         parser.add_argument("--train_fraction", type=float, default=TRAIN_FRACTION)
-        parser.add_argument("--validation_fraction", type=float, default=VALIDATION_FRACTION)
+        parser.add_argument("--val_fraction", type=float, default=VALIDATION_FRACTION)
         parser.add_argument("--test_fraction", type=float, default=TEST_FRACTION)
         return parent_parser
 
@@ -215,6 +215,13 @@ class ADNIDataModule(L.LightningDataModule):
     def setup(self, stage):
         test_transform = None
         train_transform = None
+        
+        if self.dataset == "ADNI":
+            self.dataset = ADNIDataset
+        elif self.dataset == "ADNIRAM":
+            self.dataset = ADNIDatasetRAM
+        else:
+            raise ValueError("dataset must be one of ADNI, ADNIRAM")
         
         self.train_ds = self.dataset(self.data_dir, self.meta_file_path, train_transform, split='train', **self.kwargs)
         self.val_ds = self.dataset(self.data_dir, self.meta_file_path, test_transform, split='val', **self.kwargs)

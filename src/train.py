@@ -4,18 +4,17 @@ from argparse import ArgumentParser
 import os
 import lightning as L
 import torch
-from dataset import MNIST3DModule
-from model import LitBasicMLP
 from pytorch_lightning.loggers import WandbLogger
 from trainer import MyTrainer
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
+from resnet import LitADNIResNet
 
 
 def get_model(**kwargs):
     """Decides which model to use"""
 
-    if kwargs["model_name"] == "LitBasicMLP":
-        model = LitBasicMLP(**kwargs)
+    if kwargs["model_name"] == "LitADNIResNet":
+        model = LitADNIResNet(**kwargs)
     return model
 
 
@@ -23,7 +22,7 @@ def train_model(model, trainer, data):
     """Trains a model and returns the best model after training."""
     trainer.fit(model, data)
     # load best checkpoint after training
-    model = LitBasicMLP.load_from_checkpoint(
+    model = model.__class__.load_from_checkpoint(
         trainer.checkpoint_callback.best_model_path
     )
     return model
@@ -34,7 +33,7 @@ def get_pretrained_model(pretrained_filename):
     """Loads a pretrained model from a checkpoint file."""
     print(f"Found pretrained model at {pretrained_filename}, loading...")
     # Automatically loads the model with the saved hyperparameters
-    model = LitBasicMLP.load_from_checkpoint(pretrained_filename)
+    model = model.__class__.load_from_checkpoint(pretrained_filename)
 
     return model
 
@@ -68,9 +67,9 @@ def main(args):
             "batch_size": dict_args["batch_size"],
             "learning_rate": dict_args["learning_rate"],
             "num_epochs": dict_args["max_epochs"],
-            "input_dim": dict_args["input_dim"],
-            "hidden_dim": dict_args["hidden_dim"],
-            "dropout": dict_args["dropout"],
+            #"input_dim": dict_args["input_dim"],
+            #"hidden_dim": dict_args["hidden_dim"],
+            #"dropout": dict_args["dropout"],
         }
     )
 
@@ -99,19 +98,19 @@ if __name__ == "__main__":
     # beginn with parsing arguments
     parser = ArgumentParser()
     parser = MyTrainer.add_trainer_args(parser)
+    parser = ADNIDataModule.add_data_specific_args(parser)
     # figure out which model to use
     parser.add_argument(
         "--model_name",
         type=str,
-        default="LitModel",
+        default="LitADNIResNet",
         help="LitModel or different model",
     )
     # THIS LINE IS KEY TO PULL THE MODEL NAME
     temp_args, _ = parser.parse_known_args()
     # let the model add what it needs
-    if temp_args.model_name == "LitModel":
-        parser = LitModel.add_model_specific_args(parser)
-        parser = LitModel.add_model_specific_args(parser)
+    if temp_args.model_name == "LitADNIResNet":
+        parser = LitADNIResNet.add_model_specific_args(parser)
     # elif temp_args.model_name == "mnist":
     #    parser = LitMNIST.add_model_specific_args(parser)
     args = parser.parse_args()

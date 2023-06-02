@@ -48,6 +48,6 @@ class MyTrainer(L.Trainer):
         parser.add_argument("--min_epochs", type=int, default=MIN_EPOCHS)
         parser.add_argument("--max_epochs", type=int, default=MAX_EPOCHS)
         parser.add_argument("--enable_checkpointing", type=bool, default=True)
-        paser.add_argument("--checkpoint_path", type=str, default=CHECKPOINT_PATH)
+        parser.add_argument("--checkpoint_path", type=str, default=CHECKPOINT_PATH)
         parser.add_argument("--log_model", type=bool, default=False)
         return parent_parser
