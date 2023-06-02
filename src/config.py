@@ -1,7 +1,9 @@
 """This is the configuration file for the project."""
 
 # Model related constants
-# ...
+# ADNIShuffleNetV2
+WIDTH_MULT = 1.0
+SAMPLE_SIZE = 112
 
 
 # Dataset to use
@@ -24,6 +26,7 @@ META_FILE_PATH = "/dhc/groups/adni_transformer/adni_metadata/df_procAlex_MMSE.cs
 NUM_WORKERS = (
     4  # I had a problem with this because it was EXTREMLY slow, so I set it to 1
 )
+NUM_CLASSES = 2
 
 # Compute related constants
 ACCELERATOR = "gpu"
