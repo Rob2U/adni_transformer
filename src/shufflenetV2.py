@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from config import LEARNING_RATE, WIDTH_MULT, SAMPLE_SIZE
+from config import LEARNING_RATE, WIDTH_MULT
 from torch.autograd import Variable
 from collections import OrderedDict
 from torch.nn import init
@@ -107,7 +107,7 @@ class InvertedResidual(nn.Module):
 
 
 class ADNIShuffleNetV2(nn.Module):
-    def __init__(self, sample_size, width_mult, num_classes=2, **kwargs):
+    def __init__(self, width_mult, sample_size=128, num_classes=2, **kwargs):
         super(ADNIShuffleNetV2, self).__init__()
         assert sample_size % 16 == 0
         
@@ -131,7 +131,7 @@ class ADNIShuffleNetV2(nn.Module):
 
         # building first layer
         input_channel = self.stage_out_channels[1]
-        self.conv1 = conv_bn(3, input_channel, stride=(1,2,2))
+        self.conv1 = conv_bn(1, input_channel, stride=(1,2,2))
         self.maxpool = nn.MaxPool3d(kernel_size=3, stride=2, padding=1)
         
         self.features = []
@@ -188,14 +188,13 @@ def get_fine_tuning_parameters(model, ft_portion):
     else:
         raise ValueError("Unsupported ft_portion: 'complete' or 'last_layer' expected")
 
-def get_model(sample_size, width_mult, num_classes):
-#def get_model(**kwargs):
-    # usage: e.g get_model(num_classes=600, sample_size=112, width_mult=1.)
+#def get_model(width_mult, sample_size, num_classes):
+def get_model(**kwargs):
     """
     Returns the model.
     """
-    #model = ADNIShuffleNetV2(**kwargs)
-    model = ADNIShuffleNetV2(sample_size, width_mult, num_classes)
+    model = ADNIShuffleNetV2(**kwargs)
+    #model = ADNIShuffleNetV2(sample_size, width_mult, num_classes)
     return model
    
 
@@ -213,11 +212,10 @@ class LitADNIShuffleNetV2(L.LightningModule):
 
         parser = parent_parser.add_argument_group("LitADNIShuffleNetV2")
         parser.add_argument("--learning_rate", type=float, default=LEARNING_RATE, help="provides learning rate for the optimizer")
-        parser.add_argument("--sample_size", type=int, default=SAMPLE_SIZE, help="provides sample size for the model")
         parser.add_argument("--width_mult", type=float, default=WIDTH_MULT, help="provides width multiplier for the model")
         return parent_parser
 
-    def forward(self, x, **kwargs): 
+    def forward(self, x): 
         return self.model(x)
 
     def configure_optimizers(self):
@@ -254,11 +252,12 @@ class LitADNIShuffleNetV2(L.LightningModule):
 # TODO: commit to github
 
 if __name__ == "__main__":
-    model = get_model(sample_size=112, width_mult=1., num_classes=600)
+    model = get_model(sample_size=128, width_mult=1., num_classes=600)
     model = model.cuda()
     model = nn.DataParallel(model, device_ids=None)
     print(model)
 
-    input_var = Variable(torch.randn(8, 3, 16, 112, 112))
+    input_var = Variable(torch.randn(8, 1, 128, 128, 128))
     output = model(input_var)
     print(output.shape)
+    print(output[:, :10])

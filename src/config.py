@@ -3,17 +3,15 @@
 # Model related constants
 # ADNIShuffleNetV2
 WIDTH_MULT = 1.0
-SAMPLE_SIZE = 112
-
 
 # Dataset to use
 DATASET = "ADNI"
 
 # Training related constants
 LEARNING_RATE = 3e-5
-BATCH_SIZE = 2
+BATCH_SIZE = 4
 MIN_EPOCHS = 1
-MAX_EPOCHS = 2
+MAX_EPOCHS = 15
 
 # dataset  fractions
 TRAIN_FRACTION = 0.7
