@@ -6,4 +6,5 @@ wandb/
 src/wandb/
 
 # Python caching
-.__pycache__/
+__pycache__/
+src/__pycache__/
