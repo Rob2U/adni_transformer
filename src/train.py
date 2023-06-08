@@ -9,6 +9,7 @@ from trainer import MyTrainer
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from resnet import LitADNIResNet
 from shufflenetV2 import LitADNIShuffleNetV2
+from vit import LitADNIViT
 from config import WANDB_PROJECT
 
 
@@ -19,6 +20,8 @@ def get_model(**kwargs):
         model = LitADNIResNet(**kwargs)
     elif kwargs["model_name"] == "LitADNIShuffleNetV2":
         model = LitADNIShuffleNetV2(**kwargs)
+    elif kwargs["model_name"] == "LitADNIViT":
+        model = LitADNIViT(**kwargs)
     return model
 
 
@@ -113,6 +116,8 @@ if __name__ == "__main__":
     if temp_args.model_name == "LitADNIResNet":
         parser = LitADNIResNet.add_model_specific_args(parser)
     elif temp_args.model_name == "LitADNIShuffleNetV2":
+        parser = LitADNIShuffleNetV2.add_model_specific_args(parser)
+    elif temp_args.model_name == "LitADNIViT":
         parser = LitADNIShuffleNetV2.add_model_specific_args(parser)
     args = parser.parse_args()
     main(args)
