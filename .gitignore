@@ -3,3 +3,6 @@
 
 # WANDB
 .wandb/
+
+# Python caching
+.__pycache__/

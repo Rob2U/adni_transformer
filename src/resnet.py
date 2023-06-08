@@ -15,7 +15,6 @@ class ADNIResNet(nn.Module):
         self.model = torch.nn.Sequential(*(list(resnet.children())[:-1]))
         self.model.add_module("flatten", nn.Flatten())
         self.model.add_module("linear", list(resnet.children())[-1])
-        self.model.add_module("softmax", nn.Softmax(dim=1))
         print(self.model)
     
 

@@ -8,6 +8,7 @@ from pytorch_lightning.loggers import WandbLogger
 from trainer import MyTrainer
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from resnet import LitADNIResNet
+from shufflenetV2 import LitADNIShuffleNetV2
 from config import WANDB_PROJECT
 
 
@@ -16,6 +17,8 @@ def get_model(**kwargs):
 
     if kwargs["model_name"] == "LitADNIResNet":
         model = LitADNIResNet(**kwargs)
+    elif kwargs["model_name"] == "LitADNIShuffleNetV2":
+        model = LitADNIShuffleNetV2(**kwargs)
     return model
 
 
@@ -67,10 +70,7 @@ def main(args):
         {
             "batch_size": dict_args["batch_size"],
             "learning_rate": dict_args["learning_rate"],
-            "num_epochs": dict_args["max_epochs"],
-            #"input_dim": dict_args["input_dim"],
-            #"hidden_dim": dict_args["hidden_dim"],
-            #"dropout": dict_args["dropout"],
+            "num_epochs": dict_args["max_epochs"]
         }
     )
 
@@ -105,14 +105,14 @@ if __name__ == "__main__":
         "--model_name",
         type=str,
         default="LitADNIResNet",
-        help="LitModel or different model",
+        help="LitADNIResNet or different model",
     )
     # THIS LINE IS KEY TO PULL THE MODEL NAME
     temp_args, _ = parser.parse_known_args()
     # let the model add what it needs
     if temp_args.model_name == "LitADNIResNet":
         parser = LitADNIResNet.add_model_specific_args(parser)
-    # elif temp_args.model_name == "mnist":
-    #    parser = LitMNIST.add_model_specific_args(parser)
+    elif temp_args.model_name == "LitADNIShuffleNetV2":
+        parser = LitADNIShuffleNetV2.add_model_specific_args(parser)
     args = parser.parse_args()
     main(args)
