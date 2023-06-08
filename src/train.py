@@ -9,6 +9,7 @@ from trainer import MyTrainer
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from resnet import LitADNIResNet
 from shufflenetV2 import LitADNIShuffleNetV2
+from config import WANDB_PROJECT
 
 
 def get_model(**kwargs):
@@ -64,7 +65,7 @@ def main(args):
     dict_args = vars(args)
     model = get_model(**dict_args)
 
-    wandb_logger = WandbLogger(project="ADNI_xy", log_model=dict_args["log_model"])
+    wandb_logger = WandbLogger(project=WANDB_PROJECT, log_model=dict_args["log_model"])
     wandb_logger.log_hyperparams(
         {
             "batch_size": dict_args["batch_size"],
