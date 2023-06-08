@@ -2,8 +2,8 @@
 .vscode/
 
 # WANDB
-.wandb/
-.src/wandb/
+wandb/
+src/wandb/
 
 # Python caching
 .__pycache__/
