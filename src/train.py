@@ -7,8 +7,8 @@ import torch
 from pytorch_lightning.loggers import WandbLogger
 from trainer import MyTrainer
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
-from resnet import LitADNIResNet
-from shufflenetV2 import LitADNIShuffleNetV2
+from models.resnet import LitADNIResNet
+from models.shufflenetV2 import LitADNIShuffleNetV2
 from config import WANDB_PROJECT
 
 
