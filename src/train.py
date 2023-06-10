@@ -92,7 +92,7 @@ def add_global_args(parser):
     parser.add_argument(
         "--wandb_project",
         type=str,
-        default="adni_transformer",
+        default=WANDB_PROJECT,
         help="Name of the wandb project",
     )
     return parser
