@@ -125,6 +125,7 @@ class ADNIDatasetRAM(Dataset):
     def __len__(self):
         return len(self.data['DX'])
         
+        
     def __getitem__(self, index):
         lbl, img = self.data.iloc[index][['DX','data']]
         
@@ -217,15 +218,15 @@ class ADNIDataModule(L.LightningDataModule):
         train_transform = None
         
         if self.dataset == "ADNI":
-            self.dataset = ADNIDataset
+            dataset = ADNIDataset
         elif self.dataset == "ADNIRAM":
-            self.dataset = ADNIDatasetRAM
+            dataset = ADNIDatasetRAM
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
         
-        self.train_ds = self.dataset(self.data_dir, self.meta_file_path, train_transform, split='train', **self.kwargs)
-        self.val_ds = self.dataset(self.data_dir, self.meta_file_path, test_transform, split='val', **self.kwargs)
-        self.test_ds = self.dataset(self.data_dir, self.meta_file_path, test_transform, split='test', **self.kwargs)
+        self.train_ds = dataset(self.data_dir, self.meta_file_path, train_transform, split='train', **self.kwargs)
+        self.val_ds = dataset(self.data_dir, self.meta_file_path, test_transform, split='val', **self.kwargs)
+        self.test_ds = dataset(self.data_dir, self.meta_file_path, test_transform, split='test', **self.kwargs)
             
         
     def train_dataloader(self):

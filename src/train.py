@@ -30,7 +30,8 @@ def get_model(**kwargs):
 
 def get_logger(**kwargs):
     """ Returns a WANDB logger for the model. """
-    wandb_logger = WandbLogger(project=kwargs["wandb_project"], log_model=kwargs["log_model"])
+    # set run name to current time
+    wandb_logger = WandbLogger(name=strftime("%Y-%m-%d %H:%M:%S", gmtime()), project=kwargs["wandb_project"], log_model=kwargs["log_model"])
     wandb_logger.log_hyperparams(
         {
             "batch_size": kwargs["batch_size"],
@@ -40,38 +41,37 @@ def get_logger(**kwargs):
     )
     return wandb_logger
 
-def train_model(model, logger, **kwargs):
-    """Trains a model and returns the best model after training."""
-    # add logger and checkpoint callback
+def get_trainer(**kwargs):
     checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
         monitor="val_loss",
         dirpath=os.path.join(kwargs["checkpoint_path"]),
         filename=strftime("%Y-%m-%d %H:%M:%S", gmtime()) + "-{epoch:02d}-{val_loss:.2f}",
-        save_top_k=1,
+        save_top_k=5,
         mode="min",
     )
-    trainer = MyTrainer(logger, callbacks=[checkpoint_callback], **kwargs)
-    data = ADNIDataModule(**kwargs)
     
-    trainer.fit(model, data)
+    trainer = MyTrainer(get_logger(**kwargs), callbacks=[checkpoint_callback], **kwargs)
     
-    # load best checkpoint after training
-    model = model.__class__.load_from_checkpoint(
-        trainer.checkpoint_callback.best_model_path
-    )
-    return model
+    return trainer
 
 def main(args):
     """Main function."""
     dict_args = vars(args)
     model = get_model(**dict_args) # get the specified model
+    trainer = get_trainer(**dict_args) # get the trainer
+    data = ADNIDataModule(**dict_args) # get the data
     
     if dict_args["pretrained_path"] is not None:
         model = load_pretrained_model(dict_args["pretrained_path"], model)
     else:
-        model = train_model(model,get_logger(**dict_args), **dict_args)
+        trainer.fit(model, data)
     
-    model, results = trainer.test(model, data)
+        # load best checkpoint after training
+        model = model.__class__.load_from_checkpoint(
+            trainer.checkpoint_callback.best_model_path
+        )
+    
+    results = trainer.test(model, data)
     print(results)
 
 def add_global_args(parser):

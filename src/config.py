@@ -9,9 +9,9 @@ DATASET = "ADNI"
 
 # Training related constants
 LEARNING_RATE = 3e-5
-BATCH_SIZE = 4
+BATCH_SIZE = 2
 MIN_EPOCHS = 1
-MAX_EPOCHS = 15
+MAX_EPOCHS = 1
 
 # dataset  fractions
 TRAIN_FRACTION = 0.7
@@ -27,11 +27,11 @@ NUM_WORKERS = (
 NUM_CLASSES = 2
 
 # Compute related constants
-ACCELERATOR = "gpu"
+ACCELERATOR = "cuda"
 DEVICES = 1
 
 # WANDB information
-WANDB_PROJECT = "ADNI_testing"
+WANDB_PROJECT = "ADNI_ResNet18"
 
 # Path to the folder where the pretrained models are saved
 CHECKPOINT_PATH_WITHOUT_MODELNAME = "/dhc/groups/adni_transformer/checkpoints/" + WANDB_PROJECT

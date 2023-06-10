@@ -25,7 +25,9 @@ class MyTrainer(L.Trainer):
             enable_checkpointing=kwargs["enable_checkpointing"],
             logger=logger,
             callbacks=callbacks,
+            num_sanity_val_steps=0, # num_sanity_val_steps=0 is ok because dataloading is tested
         )
+        
 
     @staticmethod
     def add_trainer_args(parent_parser):
