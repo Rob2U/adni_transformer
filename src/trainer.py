@@ -1,7 +1,7 @@
 """Contains a base class for the trainer."""
 
 import os
-from config import ACCELERATOR, CHECKPOINT_PATH, DEVICES, MAX_EPOCHS, MIN_EPOCHS
+from config import ACCELERATOR, DEVICES, MAX_EPOCHS, MIN_EPOCHS
 import lightning as L
 
 
@@ -25,7 +25,9 @@ class MyTrainer(L.Trainer):
             enable_checkpointing=kwargs["enable_checkpointing"],
             logger=logger,
             callbacks=callbacks,
+            num_sanity_val_steps=0, # num_sanity_val_steps=0 is ok because dataloading is tested
         )
+        
 
     @staticmethod
     def add_trainer_args(parent_parser):
@@ -48,6 +50,5 @@ class MyTrainer(L.Trainer):
         parser.add_argument("--min_epochs", type=int, default=MIN_EPOCHS)
         parser.add_argument("--max_epochs", type=int, default=MAX_EPOCHS)
         parser.add_argument("--enable_checkpointing", type=bool, default=True)
-        parser.add_argument("--checkpoint_path", type=str, default=CHECKPOINT_PATH)
         parser.add_argument("--log_model", type=bool, default=False)
         return parent_parser
