@@ -107,9 +107,9 @@ class InvertedResidual(nn.Module):
 
 
 class ADNIShuffleNetV2(nn.Module):
-    def __init__(self, model_config, sample_size=128, num_classes=2):
+    def __init__(self, model_args, sample_size=128, num_classes=2):
         super(ADNIShuffleNetV2, self).__init__()
-        width_mult = model_config("width_mult")
+        width_mult = model_args["width_mult"]
         assert sample_size % 16 == 0
         
         self.stage_repeats = [4, 8, 4]
@@ -190,20 +190,20 @@ def get_fine_tuning_parameters(model, ft_portion):
         raise ValueError("Unsupported ft_portion: 'complete' or 'last_layer' expected")
 
 #def get_model(width_mult, sample_size, num_classes):
-def get_model(**kwargs):
+def get_model(model_args):
     """
     Returns the model.
     """
-    model = ADNIShuffleNetV2(**kwargs)
+    model = ADNIShuffleNetV2(model_args)
     #model = ADNIShuffleNetV2(sample_size, width_mult, num_classes)
     return model
    
 
 class LitADNIShuffleNetV2(L.LightningModule):
-    def __init__(self, learning_rate, **kwargs):
+    def __init__(self, model_args, optimizer_args):
         super().__init__()
-        self.model = ADNIShuffleNetV2(**kwargs)
-        self.learning_rate = learning_rate
+        self.model = ADNIShuffleNetV2(model_args)
+        self.learning_rate = optimizer_args["learning_rate"]
         self.save_hyperparameters()
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
 
@@ -220,7 +220,7 @@ class LitADNIShuffleNetV2(L.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
         lr_scheduler = optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=[100, 150], gamma=0.1
         )

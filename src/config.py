@@ -1,11 +1,5 @@
 """This is the configuration file for the project."""
 
-# all of those are combined in the model-args
-#---------------------------------------------
-SHUFFLENETV2_CONFIG = {
-    "width_mult": 1.0,
-}
-#---------------------------------------------
 
 OPTIMIZER_CONFIG = {
     "learning_rate": 5e-2,
@@ -27,6 +21,7 @@ TRAINER_CONFIG = {
     "devices": 1,
     "min_epochs": 1,
     "max_epochs": 15,
+    "enable_checkpointing": True,
 }
 
 
@@ -39,4 +34,16 @@ CHECKPOINT_CONFIG = {
     "pretrained_path": None,
     # "PRETRAINED_PATH" = "/dhc/groups/adni_transformer/checkpoints/benchmarks/LitADNIShuffleNetV2/2023-06-14 09:23:42-epoch=01-val_loss=0.63.ckpt"
 }
+
+
+# all of those are combined in the model-args
+#---------------------------------------------
+SHUFFLENETV2_CONFIG = {
+    "width_mult": 1.0,
+}
+
+RESNET_CONFIG = {
+    "accelerator": TRAINER_CONFIG["accelerator"],
+}
+#---------------------------------------------
 

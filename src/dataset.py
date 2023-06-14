@@ -43,15 +43,17 @@ def get_test_tfms():
 
 
 class ADNIDataset(Dataset):
-    def __init__(self, data_dir, meta_file, transform=None, split='train', **kwargs):
+    def __init__(self, data_args, transform=None, split='train'):
         super().__init__()
         self.classes = ['CN', 'AD']
-        self.data_dir = data_dir
         self.transform = transform
         self.split = split
-        self.kwargs = kwargs
-        
-        self.data = pd.read_csv(meta_file) # first of all load metadata
+        self.data_dir = data_args['data_dir']
+        self.meta_file_path = data_args['meta_file_path']
+        self.train_fraction = data_args['train_fraction']
+        self.validation_fraction = data_args['validation_fraction']
+        self.test_fraction = data_args['test_fraction']
+        self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         
         
@@ -83,17 +85,12 @@ class ADNIDataset(Dataset):
         patients = self.data['PTID'].unique()
         patients = np.random.permutation(patients)
         
-        train_fraction = self.kwargs["train_fraction"]
-        val_fraction = self.kwargs["val_fraction"]
-        test_fraction = self.kwargs["test_fraction"]
-        
-
         if self.split == 'train':
-            patients = patients[:int(patients.shape[0] * train_fraction)]
+            patients = patients[:int(patients.shape[0] * self.train_fraction)]
         elif self.split == 'val':
-            patients = patients[int(patients.shape[0] * train_fraction):int(patients.shape[0] * (train_fraction + val_fraction))]
+            patients = patients[int(patients.shape[0] * self.train_fraction):int(patients.shape[0] * (self.train_fraction + self.validation_fraction))]
         elif self.split == 'test':
-            patients = patients[int(patients.shape[0] * (train_fraction + val_fraction)):] # leave test_fraction cause unnecessary
+            patients = patients[int(patients.shape[0] * (self.train_fraction + self.validation_fraction)):] # leave test_fraction cause unnecessary
         else:
             raise ValueError('split must be one of train, val, test')
             
@@ -109,15 +106,17 @@ class ADNIDataset(Dataset):
         
         
 class ADNIDatasetRAM(Dataset):
-    def __init__(self, data_dir, meta_file, transform=None, split='train', **kwargs):
+    def __init__(self, data_args, transform=None, split='train'):
         super().__init__()
         self.classes = ['CN', 'AD']
-        self.data_dir = data_dir
         self.transform = transform
         self.split = split
-        self.kwargs = kwargs
-        
-        self.data = pd.read_csv(meta_file) # first of all load metadata
+        self.data_dir = data_args['data_dir']
+        self.meta_file_path = data_args['meta_file_path']
+        self.train_fraction = data_args['train_fraction']
+        self.validation_fraction = data_args['validation_fraction']
+        self.test_fraction = data_args['test_fraction']
+        self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         self.load_data() # then load the data from the .npy.npz files and reduce to relevant columns
         # drop everything else
@@ -157,17 +156,13 @@ class ADNIDatasetRAM(Dataset):
         np.random.seed(42)
         patients = self.data['PTID'].unique()
         patients = np.random.permutation(patients)
-        
-        train_fraction = kwargs["train_fraction"]
-        val_fraction = kwargs["validation_fraction"]
-        test_fraction = kwargs["test_fraction"]
 
         if self.split == 'train':
-            patients = patients[:int(patients.shape[0] * train_fraction)]
+            patients = patients[:int(patients.shape[0] * self.train_fraction)]
         elif self.split == 'val':
-            patients = patients[int(patients.shape[0] * train_fraction):int(patients.shape[0] * (train_fraction + val_fraction))]
+            patients = patients[int(patients.shape[0] * self.train_fraction):int(patients.shape[0] * (self.train_fraction + self.validation_fraction))]
         elif self.split == 'test':
-            patients = patients[int(patients.shape[0] * (train_fraction + val_fraction)):]
+            patients = patients[int(patients.shape[0] * (self.train_fraction + self.validation_fraction)):]
         else:
             raise ValueError('split must be one of train, val, test')
             
@@ -185,14 +180,12 @@ class ADNIDatasetRAM(Dataset):
 class ADNIDataModule(L.LightningDataModule):
     """ADNI datamodule"""
 
-    def __init__(self, dataset, data_dir, meta_file_path, batch_size, num_workers, **kwargs):
+    def __init__(self, data_args):
         super().__init__()
-        self.data_dir = data_dir
-        self.meta_file_path = meta_file_path
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.dataset = dataset
-        self.kwargs = kwargs
+        self.dataset = data_args["dataset"]
+        self.data_args = data_args
+        self.batch_size = data_args["batch_size"]
+        self.num_workers = data_args["num_workers"]
 
     @staticmethod
     def add_data_specific_args(parent_parser):
@@ -224,9 +217,9 @@ class ADNIDataModule(L.LightningDataModule):
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
         
-        self.train_ds = dataset(self.data_dir, self.meta_file_path, train_transform, split='train', **self.kwargs)
-        self.val_ds = dataset(self.data_dir, self.meta_file_path, test_transform, split='val', **self.kwargs)
-        self.test_ds = dataset(self.data_dir, self.meta_file_path, test_transform, split='test', **self.kwargs)
+        self.train_ds = dataset(self.data_args, train_transform, split='train')
+        self.val_ds = dataset(self.data_args, test_transform, split='val')
+        self.test_ds = dataset(self.data_args, test_transform, split='test')
             
         
     def train_dataloader(self):

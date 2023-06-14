@@ -9,7 +9,7 @@ from config import OPTIMIZER_CONFIG
 from models import summary
 
 class ADNIResNet(nn.Module):
-    def __init__(self, **kwargs):
+    def __init__(self, model_args):
         
         super().__init__()
         resnet = resnet18(pretrained=False, n_input_channels=1, num_classes=2, spatial_dims=3)
@@ -17,7 +17,7 @@ class ADNIResNet(nn.Module):
         self.model = torch.nn.Sequential(*(list(resnet.children())[:-1]))
         self.model.add_module("flatten", nn.Flatten())
         self.model.add_module("linear", list(resnet.children())[-1])
-        self.model.to(kwargs["accelerator"])
+        self.model.to(model_args["accelerator"])
         self.model.bn1 = torch.nn.Identity()
         #summary.summary(self.model, (1, 128, 128, 128), batch_size=32)
         #
@@ -30,11 +30,11 @@ class ADNIResNet(nn.Module):
 class LitADNIResNet(L.LightningModule):
     """A lit Model."""
 
-    def __init__(self, learning_rate, **kwargs):
+    def __init__(self, model_args, optimizer_args):
         super().__init__()
-        #self.device = kwargs["accelerator"]
-        self.model = ADNIResNet(**kwargs)
-        self.learning_rate = learning_rate
+        #self.device = model_args["accelerator"]
+        self.model = ADNIResNet(model_args)
+        self.learning_rate = optimizer_args["learning_rate"]
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
         self.iteration_labels = torch.Tensor([], device="cpu")
@@ -48,13 +48,13 @@ class LitADNIResNet(L.LightningModule):
         parser.add_argument("--learning_rate", type=float, default=OPTIMIZER_CONFIG["learning_rate"], help="provides learning rate for the optimizer")
         return parent_parser
 
-    def forward(self, x, **kwargs): 
+    def forward(self, x): 
         return self.model(x)
 
     def configure_optimizers(self):
         
         #optimizer = optim.AdamW(self.parameters(), lr=self.hparams.learning_rate)
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         lr_scheduler = optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=[100, 150], gamma=0.1
         )

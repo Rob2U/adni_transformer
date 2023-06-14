@@ -19,52 +19,53 @@ def load_pretrained_model(pretrained_path, model):
     model = model.__class__.load_from_checkpoint(pretrained_path)
     return model
 
-def get_model(**kwargs):
+def get_model(model_name, model_args, optimizer_args):
     """Decides which model to use"""
 
-    if kwargs["model_name"] == "LitADNIResNet":
-        model = LitADNIResNet(**kwargs)
-    elif kwargs["model_name"] == "LitADNIShuffleNetV2":
-        model = LitADNIShuffleNetV2(**kwargs)
+    if model_name == "LitADNIResNet":
+        model = LitADNIResNet(model_args, optimizer_args)
+    elif model_name == "LitADNIShuffleNetV2":
+        model = LitADNIShuffleNetV2(model_args, optimizer_args)
     return model
 
-def get_logger(**kwargs):
+def get_logger(dict_args):
     """ Returns a WANDB logger for the model. """
     # set run name to current time
-    wandb_logger = WandbLogger(name=strftime("%Y-%m-%d %H:%M:%S", gmtime()), project=kwargs["wandb_project"], log_model=kwargs["log_model"])
+    wandb_logger = WandbLogger(name=strftime("%Y-%m-%d %H:%M:%S", gmtime()), project=dict_args["wandb_project"], log_model=dict_args["log_model"])
     wandb_logger.log_hyperparams(
         {
-            "batch_size": kwargs["batch_size"],
-            "learning_rate": kwargs["learning_rate"],
-            "num_epochs": kwargs["max_epochs"]
+            "batch_size": dict_args["batch_size"],
+            "learning_rate": dict_args["learning_rate"],
+            "num_epochs": dict_args["max_epochs"]
         }
     )
     return wandb_logger
 
-def get_trainer(**kwargs):
+def get_trainer(dict_args, trainer_args):
     checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
         monitor="val_loss",
-        dirpath=os.path.join(kwargs["checkpoint_path"]),
+        dirpath=os.path.join(dict_args["checkpoint_path"]),
         filename=strftime("%Y-%m-%d %H:%M:%S", gmtime()) + "-{epoch:02d}-{val_loss:.2f}",
         save_top_k=5,
         mode="min",
     )
     
-    trainer = MyTrainer(get_logger(**kwargs), callbacks=[checkpoint_callback], **kwargs)
+    trainer = MyTrainer(get_logger(dict_args), [checkpoint_callback], trainer_args)
     
     return trainer
 
 def main(args):
     """Main function."""
     dict_args = vars(args)
+    model_name = dict_args["model_name"]
     model_specific_arg_keys = set(SHUFFLENETV2_CONFIG.keys())    # when there is a new model-config add it this way: set(SHUFFLENETV2_CONFIG.keys()) | set(NEW_CONFIG.keys()) | ...)
     model_args = {key: dict_args[key] for key in dict_args.keys() & model_specific_arg_keys}
     optimizer_args = {key: dict_args[key] for key in dict_args.keys() & set(OPTIMIZER_CONFIG)}
     trainer_args = {key: dict_args[key] for key in dict_args.keys() & set(TRAINER_CONFIG)}
     data_args = {key: dict_args[key] for key in dict_args.keys() & set(DATA_CONFIG)}
-    model = get_model(**dict_args) # get the specified model
-    trainer = get_trainer(**dict_args) # get the trainer
-    data = ADNIDataModule(**dict_args) # get the data
+    model = get_model(model_name, model_args, optimizer_args) # get the specified model
+    trainer = get_trainer(dict_args, trainer_args) # get the trainer
+    data = ADNIDataModule(data_args) # get the data
     
     if dict_args["pretrained_path"] is not None:
         model = load_pretrained_model(dict_args["pretrained_path"], model)
