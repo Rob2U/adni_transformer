@@ -6,6 +6,7 @@ import lightning as L
 import torch
 from time import gmtime, strftime
 from pytorch_lightning.loggers import WandbLogger
+from benchmarks.benchmarks import SamplesPerSecondBenchmark
 from trainer import MyTrainer
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
@@ -35,10 +36,10 @@ def get_logger(dict_args):
     wandb_logger.log_hyperparams(
         {
             "batch_size": dict_args["batch_size"],
-            "learning_rate": dict_args["learning_rate"],
             "num_epochs": dict_args["max_epochs"]
         }
     )
+    wandb_logger.experiment.define_metric("SamplesPerSecond", summary="mean")
     return wandb_logger
 
 def get_trainer(dict_args, trainer_args):
@@ -49,8 +50,9 @@ def get_trainer(dict_args, trainer_args):
         save_top_k=5,
         mode="min",
     )
-    
-    trainer = MyTrainer(get_logger(dict_args), [checkpoint_callback], trainer_args)
+    samplesPerSecondBenchmark = SamplesPerSecondBenchmark()
+
+    trainer = MyTrainer(get_logger(dict_args), [checkpoint_callback, samplesPerSecondBenchmark], trainer_args)
     
     return trainer
 
