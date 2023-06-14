@@ -10,7 +10,7 @@ from trainer import MyTrainer
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
-from config import WANDB_PROJECT, PRETRAINED_PATH, CHECKPOINT_PATH_WITHOUT_MODELNAME
+from config import SHUFFLENETV2_CONFIG, OPTIMIZER_CONFIG, DATA_CONFIG, TRAINER_CONFIG, WANDB_CONFIG, CHECKPOINT_CONFIG
 
 def load_pretrained_model(pretrained_path, model):
     """Loads a pretrained model from a checkpoint file."""
@@ -57,6 +57,11 @@ def get_trainer(**kwargs):
 def main(args):
     """Main function."""
     dict_args = vars(args)
+    model_specific_arg_keys = set(SHUFFLENETV2_CONFIG.keys())    # when there is a new model-config add it this way: set(SHUFFLENETV2_CONFIG.keys()) | set(NEW_CONFIG.keys()) | ...)
+    model_args = {key: dict_args[key] for key in dict_args.keys() & model_specific_arg_keys}
+    optimizer_args = {key: dict_args[key] for key in dict_args.keys() & set(OPTIMIZER_CONFIG)}
+    trainer_args = {key: dict_args[key] for key in dict_args.keys() & set(TRAINER_CONFIG)}
+    data_args = {key: dict_args[key] for key in dict_args.keys() & set(DATA_CONFIG)}
     model = get_model(**dict_args) # get the specified model
     trainer = get_trainer(**dict_args) # get the trainer
     data = ADNIDataModule(**dict_args) # get the data
@@ -85,14 +90,14 @@ def add_global_args(parser):
     parser.add_argument(
         "--pretrained_path",
         type=str,
-        default=PRETRAINED_PATH,
+        default=CHECKPOINT_CONFIG["pretrained_path"],
         help="Path to pretrained model",
     )
     
     parser.add_argument(
         "--wandb_project",
         type=str,
-        default=WANDB_PROJECT,
+        default=WANDB_CONFIG["wandb_project"],
         help="Name of the wandb project",
     )
     return parser
@@ -124,7 +129,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint_path", 
         type=str, 
-        default=os.path.join(CHECKPOINT_PATH_WITHOUT_MODELNAME, temp_args.wandb_project+"/", temp_args.model_name)
+        default=os.path.join(CHECKPOINT_CONFIG["checkpoint_path_without_model_name"], temp_args.wandb_project+"/", temp_args.model_name)
     )
         
     args = parser.parse_args()

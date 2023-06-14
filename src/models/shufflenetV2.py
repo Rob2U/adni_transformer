@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from config import LEARNING_RATE, WIDTH_MULT
+from config import OPTIMIZER_CONFIG, SHUFFLENETV2_CONFIG
 from torch.autograd import Variable
 from collections import OrderedDict
 from torch.nn import init
@@ -107,8 +107,9 @@ class InvertedResidual(nn.Module):
 
 
 class ADNIShuffleNetV2(nn.Module):
-    def __init__(self, width_mult, sample_size=128, num_classes=2, **kwargs):
+    def __init__(self, model_config, sample_size=128, num_classes=2):
         super(ADNIShuffleNetV2, self).__init__()
+        width_mult = model_config("width_mult")
         assert sample_size % 16 == 0
         
         self.stage_repeats = [4, 8, 4]
@@ -211,8 +212,8 @@ class LitADNIShuffleNetV2(L.LightningModule):
         """Adds model-specific arguments to the parser."""
 
         parser = parent_parser.add_argument_group("LitADNIShuffleNetV2")
-        parser.add_argument("--learning_rate", type=float, default=LEARNING_RATE, help="provides learning rate for the optimizer")
-        parser.add_argument("--width_mult", type=float, default=WIDTH_MULT, help="provides width multiplier for the model")
+        parser.add_argument("--learning_rate", type=float, default=OPTIMIZER_CONFIG["learning_rate"], help="provides learning rate for the optimizer")
+        parser.add_argument("--width_mult", type=float, default=SHUFFLENETV2_CONFIG["width_mult"], help="provides width multiplier for the model")
         return parent_parser
 
     def forward(self, x): 
@@ -244,12 +245,6 @@ class LitADNIShuffleNetV2(L.LightningModule):
     def test_step(self, batch, batch_idx):
         return self._calculate_loss(batch, mode="test")
     
-
-# TODO: change the parsed arguments to match the actual model
-# TODO: understand architecture and weird hardcoded values
-# TODO: add specific default-parameters in config file
-# TODO: test a training run
-# TODO: commit to github
 
 if __name__ == "__main__":
     model = get_model(sample_size=128, width_mult=1., num_classes=600)

@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torchmetrics import AUROC, Accuracy, F1Score
 from monai.networks.nets import resnet18
-from config import LEARNING_RATE
+from config import OPTIMIZER_CONFIG
 from models import summary
 
 class ADNIResNet(nn.Module):
@@ -45,7 +45,7 @@ class LitADNIResNet(L.LightningModule):
         """Adds model-specific arguments to the parser."""
 
         parser = parent_parser.add_argument_group("LitADNIResNet")
-        parser.add_argument("--learning_rate", type=float, default=LEARNING_RATE, help="provides learning rate for the optimizer")
+        parser.add_argument("--learning_rate", type=float, default=OPTIMIZER_CONFIG["learning_rate"], help="provides learning rate for the optimizer")
         return parent_parser
 
     def forward(self, x, **kwargs): 

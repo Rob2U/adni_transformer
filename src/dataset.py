@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.utils.data import Dataset
-from config import BATCH_SIZE, NUM_WORKERS, DATA_DIR, META_FILE_PATH, TRAIN_FRACTION, VALIDATION_FRACTION, TEST_FRACTION, DATASET
+from config import DATA_CONFIG
 
 import os
 import numpy as np
@@ -159,7 +159,7 @@ class ADNIDatasetRAM(Dataset):
         patients = np.random.permutation(patients)
         
         train_fraction = kwargs["train_fraction"]
-        val_fraction = kwargs["val_fraction"]
+        val_fraction = kwargs["validation_fraction"]
         test_fraction = kwargs["test_fraction"]
 
         if self.split == 'train':
@@ -198,14 +198,14 @@ class ADNIDataModule(L.LightningDataModule):
     def add_data_specific_args(parent_parser):
         """Adds data-specific arguments to the parser."""
         parser = parent_parser.add_argument_group("ADNIDataModule")
-        parser.add_argument("--data_dir", type=str, default=DATA_DIR)
-        parser.add_argument("--meta_file_path", type=str, default=META_FILE_PATH)
-        parser.add_argument("--batch_size", type=int, default=BATCH_SIZE)
-        parser.add_argument("--num_workers", type=int, default=NUM_WORKERS)
-        parser.add_argument("--dataset", type=str, default=DATASET)
-        parser.add_argument("--train_fraction", type=float, default=TRAIN_FRACTION)
-        parser.add_argument("--val_fraction", type=float, default=VALIDATION_FRACTION)
-        parser.add_argument("--test_fraction", type=float, default=TEST_FRACTION)
+        parser.add_argument("--data_dir", type=str, default=DATA_CONFIG["data_dir"])
+        parser.add_argument("--meta_file_path", type=str, default=DATA_CONFIG["meta_file_path"])
+        parser.add_argument("--batch_size", type=int, default=DATA_CONFIG["batch_size"])
+        parser.add_argument("--num_workers", type=int, default=DATA_CONFIG["num_workers"])
+        parser.add_argument("--dataset", type=str, default=DATA_CONFIG["dataset"])
+        parser.add_argument("--train_fraction", type=float, default=DATA_CONFIG["train_fraction"])
+        parser.add_argument("--validation_fraction", type=float, default=DATA_CONFIG["validation_fraction"])
+        parser.add_argument("--test_fraction", type=float, default=DATA_CONFIG["test_fraction"])
         return parent_parser
 
     # execute on single GPU
