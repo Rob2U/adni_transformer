@@ -124,7 +124,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint_path", 
         type=str, 
-        default=os.path.join(CHECKPOINT_PATH_WITHOUT_MODELNAME, temp_args.model_name)
+        default=os.path.join(CHECKPOINT_PATH_WITHOUT_MODELNAME, temp_args.wandb_project+"/", temp_args.model_name)
     )
         
     args = parser.parse_args()
