@@ -34,5 +34,6 @@ DEVICES = 1
 WANDB_PROJECT = "ADNI_ResNet18"
 
 # Path to the folder where the pretrained models are saved
-CHECKPOINT_PATH_WITHOUT_MODELNAME = "/dhc/groups/adni_transformer/checkpoints/" + WANDB_PROJECT
+CHECKPOINT_PATH_WITHOUT_MODELNAME = "/dhc/groups/adni_transformer/checkpoints/"
 PRETRAINED_PATH = None
+#PRETRAINED_PATH = "/dhc/groups/adni_transformer/checkpoints/benchmarks/LitADNIShuffleNetV2/2023-06-14 09:23:42-epoch=01-val_loss=0.63.ckpt"
