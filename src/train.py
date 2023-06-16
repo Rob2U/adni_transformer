@@ -7,11 +7,9 @@ import torch
 from time import gmtime, strftime
 from pytorch_lightning.loggers import WandbLogger
 from benchmarks.benchmarks import SamplesPerSecondBenchmark
-from trainer import MyTrainer
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
-from config import SHUFFLENETV2_CONFIG, OPTIMIZER_CONFIG, DATA_CONFIG, TRAINER_CONFIG, WANDB_CONFIG, CHECKPOINT_CONFIG
 
 def load_pretrained_model(pretrained_path, model):
     """Loads a pretrained model from a checkpoint file."""
@@ -59,12 +57,6 @@ def get_trainer(dict_args, trainer_args):
 def main(args):
     """Main function."""
     dict_args = vars(args)
-    model_name = dict_args["model_name"]
-    model_specific_arg_keys = set(SHUFFLENETV2_CONFIG.keys())    # when there is a new model-config add it this way: set(SHUFFLENETV2_CONFIG.keys()) | set(NEW_CONFIG.keys()) | ...)
-    model_args = {key: dict_args[key] for key in dict_args.keys() & model_specific_arg_keys}
-    optimizer_args = {key: dict_args[key] for key in dict_args.keys() & set(OPTIMIZER_CONFIG)}
-    trainer_args = {key: dict_args[key] for key in dict_args.keys() & set(TRAINER_CONFIG)}
-    data_args = {key: dict_args[key] for key in dict_args.keys() & set(DATA_CONFIG)}
     model = get_model(model_name, model_args, optimizer_args) # get the specified model
     trainer = get_trainer(dict_args, trainer_args) # get the trainer
     data = ADNIDataModule(data_args) # get the data

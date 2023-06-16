@@ -1,7 +1,6 @@
 """Contains a base class for the trainer."""
 
 import os
-from config import TRAINER_CONFIG
 import lightning as L
 
 
