@@ -13,7 +13,7 @@ class ADNIParser(argparse.ArgumentParser):
         self.set_defaults()
 
     def set_hyperparamter_defaults(self):
-        self.hyperparameters.add_argument("--model_name", type=str, default=DEFAULTS['HYPERPARAMETERS']['model'])
+        self.hyperparameters.add_argument("--model_name", type=str, default=DEFAULTS['HYPERPARAMETERS']['model_name'])
         self.hyperparameters.add_argument("--learning_rate", type=float, default=DEFAULTS['HYPERPARAMETERS']['learning_rate'])
         self.hyperparameters.add_argument("--batch_size", type=int, default=DEFAULTS['HYPERPARAMETERS']['batch_size'])
         self.hyperparameters.add_argument("--train_fraction", type=float, default=DEFAULTS['HYPERPARAMETERS']['train_fraction'])
@@ -33,6 +33,7 @@ class ADNIParser(argparse.ArgumentParser):
 
     def set_wandb_defaults(self):
         self.wandb.add_argument("--wandb_project", type=str, default=DEFAULTS['WANDB']['wandb_project'])
+        self.wandb.add_argument("--log_model", type=str, default=DEFAULTS['WANDB']['log_model'])
 
     def set_checkpointing_defaults(self):
         self.checkpointing.add_argument("--checkpoint_path_without_model_name", type=str, default=DEFAULTS['CHECKPOINTING']['checkpoint_path_without_model_name'])

@@ -5,8 +5,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torchmetrics import AUROC, Accuracy, F1Score
 from monai.networks.nets import resnet18
-from config import OPTIMIZER_CONFIG
 from models import summary
+from defaults import MODEL_DEFAULTS
 
 class ADNIResNet(nn.Module):
     def __init__(self, model_args):
@@ -30,11 +30,11 @@ class ADNIResNet(nn.Module):
 class LitADNIResNet(L.LightningModule):
     """A lit Model."""
 
-    def __init__(self, model_args, optimizer_args):
+    def __init__(self, model_arguments):
         super().__init__()
         #self.device = model_args["accelerator"]
-        self.model = ADNIResNet(model_args)
-        self.learning_rate = optimizer_args["learning_rate"]
+        self.model = ADNIResNet(model_arguments)
+        self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
         self.iteration_labels = torch.Tensor([], device="cpu")
@@ -45,7 +45,8 @@ class LitADNIResNet(L.LightningModule):
         """Adds model-specific arguments to the parser."""
 
         parser = parent_parser.add_argument_group("LitADNIResNet")
-        parser.add_argument("--learning_rate", type=float, default=OPTIMIZER_CONFIG["learning_rate"], help="provides learning rate for the optimizer")
+        # add arguments like this:
+        #parser.add_argument("--n_hidden_layers", type=int, default=MODEL_DEFAULTS["ResNet18"]["..."], help="number of hidden layers")
         return parent_parser
 
     def forward(self, x): 

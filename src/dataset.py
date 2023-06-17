@@ -5,8 +5,6 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.utils.data import Dataset
-from config import DATA_CONFIG
-
 import os
 import numpy as np
 import pandas as pd
@@ -43,16 +41,18 @@ def get_test_tfms():
 
 
 class ADNIDataset(Dataset):
-    def __init__(self, data_args, transform=None, split='train'):
+    def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
         super().__init__()
-        self.classes = ['CN', 'AD']
+        
+        self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction        
         self.transform = transform
         self.split = split
-        self.data_dir = data_args['data_dir']
-        self.meta_file_path = data_args['meta_file_path']
-        self.train_fraction = data_args['train_fraction']
-        self.validation_fraction = data_args['validation_fraction']
-        self.test_fraction = data_args['test_fraction']
+
+        self.classes = ['CN', 'AD']
         self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         
@@ -106,16 +106,17 @@ class ADNIDataset(Dataset):
         
         
 class ADNIDatasetRAM(Dataset):
-    def __init__(self, data_args, transform=None, split='train'):
+    def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
         super().__init__()
-        self.classes = ['CN', 'AD']
+        self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction        
         self.transform = transform
         self.split = split
-        self.data_dir = data_args['data_dir']
-        self.meta_file_path = data_args['meta_file_path']
-        self.train_fraction = data_args['train_fraction']
-        self.validation_fraction = data_args['validation_fraction']
-        self.test_fraction = data_args['test_fraction']
+
+        self.classes = ['CN', 'AD']
         self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         self.load_data() # then load the data from the .npy.npz files and reduce to relevant columns
@@ -180,26 +181,18 @@ class ADNIDatasetRAM(Dataset):
 class ADNIDataModule(L.LightningDataModule):
     """ADNI datamodule"""
 
-    def __init__(self, data_args):
+    def __init__(self, dataset, batch_size, num_workers, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
         super().__init__()
-        self.dataset = data_args["dataset"]
-        self.data_args = data_args
-        self.batch_size = data_args["batch_size"]
-        self.num_workers = data_args["num_workers"]
-
-    @staticmethod
-    def add_data_specific_args(parent_parser):
-        """Adds data-specific arguments to the parser."""
-        parser = parent_parser.add_argument_group("ADNIDataModule")
-        parser.add_argument("--data_dir", type=str, default=DATA_CONFIG["data_dir"])
-        parser.add_argument("--meta_file_path", type=str, default=DATA_CONFIG["meta_file_path"])
-        parser.add_argument("--batch_size", type=int, default=DATA_CONFIG["batch_size"])
-        parser.add_argument("--num_workers", type=int, default=DATA_CONFIG["num_workers"])
-        parser.add_argument("--dataset", type=str, default=DATA_CONFIG["dataset"])
-        parser.add_argument("--train_fraction", type=float, default=DATA_CONFIG["train_fraction"])
-        parser.add_argument("--validation_fraction", type=float, default=DATA_CONFIG["validation_fraction"])
-        parser.add_argument("--test_fraction", type=float, default=DATA_CONFIG["test_fraction"])
-        return parent_parser
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction
+        self.transform = transform
+        self.split = split
 
     # execute on single GPU
     def prepare_data(self):
@@ -217,11 +210,10 @@ class ADNIDataModule(L.LightningDataModule):
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
         
-        self.train_ds = dataset(self.data_args, train_transform, split='train')
-        self.val_ds = dataset(self.data_args, test_transform, split='val')
-        self.test_ds = dataset(self.data_args, test_transform, split='test')
-            
-        
+        self.train_ds = dataset(self.data_dir, self.meta_file_path, self.train_fraction, self.validation_fraction, self.test_fraction, train_transform, split='train')
+        self.val_ds = dataset(self.data_dir, self.meta_file_path, self.train_fraction, self.validation_fraction, self.test_fraction, test_transform, split='val')
+        self.test_ds = dataset(self.data_dir, self.meta_file_path, self.train_fraction, self.validation_fraction, self.test_fraction, test_transform, split='test')
+               
     def train_dataloader(self):
         return DataLoader(
             self.train_ds,

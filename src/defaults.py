@@ -5,7 +5,7 @@ DEFAULTS = dict(
 
     HYPERPARAMETERS = dict(
         model_name="ShuffleNetV2",
-        # optimizer="Adam", TODO: inlcude optimizer as a hyperparameter
+        optimizer="Adam",
         learning_rate=5e-2,
         batch_size=4,
         train_fraction=0.7,
@@ -28,6 +28,7 @@ DEFAULTS = dict(
 
     WANDB = dict(
         wandb_project="ADNI_parsing",
+        log_model=True,
     ),
 
     CHECKPOINTING = dict(
@@ -38,11 +39,14 @@ DEFAULTS = dict(
     ),
 )
 
-MODEL_Defaults = dict(
+MODEL_DEFAULTS = dict(
 
     ShuffleNetV2=dict(
-        widht_mult=1.0,
+        width_mult=1.0,
     ),
+
+    ResNet18=dict(),
+    ViT=dict(),
 
 )
 

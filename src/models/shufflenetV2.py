@@ -6,11 +6,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from config import OPTIMIZER_CONFIG, SHUFFLENETV2_CONFIG
 from torch.autograd import Variable
 from collections import OrderedDict
 from torch.nn import init
 import math
+from defaults import MODEL_DEFAULTS
 
 
 def conv_bn(inp, oup, stride):
@@ -107,9 +107,9 @@ class InvertedResidual(nn.Module):
 
 
 class ADNIShuffleNetV2(nn.Module):
-    def __init__(self, model_args, sample_size=128, num_classes=2):
+    def __init__(self, model_arguments, sample_size=128, num_classes=2):
         super(ADNIShuffleNetV2, self).__init__()
-        width_mult = model_args["width_mult"]
+        width_mult = model_arguments["width_mult"]
         assert sample_size % 16 == 0
         
         self.stage_repeats = [4, 8, 4]
@@ -200,20 +200,18 @@ def get_model(model_args):
    
 
 class LitADNIShuffleNetV2(L.LightningModule):
-    def __init__(self, model_args, optimizer_args):
+    def __init__(self, model_arguments):
         super().__init__()
-        self.model = ADNIShuffleNetV2(model_args)
-        self.learning_rate = optimizer_args["learning_rate"]
+        self.model = ADNIShuffleNetV2(model_arguments)
+        self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
 
     @staticmethod  # register new arguments here
     def add_model_specific_args(parent_parser):
         """Adds model-specific arguments to the parser."""
-
         parser = parent_parser.add_argument_group("LitADNIShuffleNetV2")
-        parser.add_argument("--learning_rate", type=float, default=OPTIMIZER_CONFIG["learning_rate"], help="provides learning rate for the optimizer")
-        parser.add_argument("--width_mult", type=float, default=SHUFFLENETV2_CONFIG["width_mult"], help="provides width multiplier for the model")
+        parser.add_argument("--width_mult", type=float, default=MODEL_DEFAULTS["ShuffleNetV2"]["width_mult"], help="provides width multiplier for the model")
         return parent_parser
 
     def forward(self, x): 

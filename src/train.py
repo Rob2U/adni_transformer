@@ -10,6 +10,8 @@ from benchmarks.benchmarks import SamplesPerSecondBenchmark
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
+from mlparser import ADNIParser
+from defaults import DEFAULTS, MODEL_DEFAULTS
 
 def load_pretrained_model(pretrained_path, model):
     """Loads a pretrained model from a checkpoint file."""
@@ -18,54 +20,89 @@ def load_pretrained_model(pretrained_path, model):
     model = model.__class__.load_from_checkpoint(pretrained_path)
     return model
 
-def get_model(model_name, model_args, optimizer_args):
-    """Decides which model to use"""
+def get_model_arguments(model_name, parsed_arguments):
+    model_args = {key: parsed_arguments[key] for key in parsed_arguments & MODEL_DEFAULTS[model_name].keys()}
+    if model_name == "ResNet18":
+        model_args["accelerator"] = parsed_arguments["accelerator"]
+    # elif model_name ==
+    model_args["learning_rate"] = parsed_arguments["learning_rate"]
+    return model_args
 
-    if model_name == "LitADNIResNet":
-        model = LitADNIResNet(model_args, optimizer_args)
-    elif model_name == "LitADNIShuffleNetV2":
-        model = LitADNIShuffleNetV2(model_args, optimizer_args)
+def get_model(model_name, model_arguments):
+    """Decides which model to use"""
+    if model_name == "ResNet18":
+        model = LitADNIResNet(model_arguments)
+    elif model_name == "ShuffleNetV2":
+        model = LitADNIShuffleNetV2(model_arguments)
     return model
 
-def get_logger(dict_args):
+def get_logger(arguments):
     """ Returns a WANDB logger for the model. """
     # set run name to current time
-    wandb_logger = WandbLogger(name=strftime("%Y-%m-%d %H:%M:%S", gmtime()), project=dict_args["wandb_project"], log_model=dict_args["log_model"])
+    wandb_logger = WandbLogger(name=strftime("%Y-%m-%d %H:%M:%S", gmtime()), project=arguments["wandb_project"], log_model=arguments["log_model"])
     wandb_logger.log_hyperparams(
         {
-            "batch_size": dict_args["batch_size"],
-            "num_epochs": dict_args["max_epochs"]
+            "batch_size": arguments["batch_size"],
+            "num_epochs": arguments["max_epochs"]
         }
     )
     wandb_logger.experiment.define_metric("SamplesPerSecond", summary="mean")
     return wandb_logger
 
-def get_trainer(dict_args, trainer_args):
-    checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
-        monitor="val_loss",
-        dirpath=os.path.join(dict_args["checkpoint_path"]),
-        filename=strftime("%Y-%m-%d %H:%M:%S", gmtime()) + "-{epoch:02d}-{val_loss:.2f}",
-        save_top_k=5,
-        mode="min",
-    )
-    samplesPerSecondBenchmark = SamplesPerSecondBenchmark()
-
-    trainer = MyTrainer(get_logger(dict_args), [checkpoint_callback, samplesPerSecondBenchmark], trainer_args)
+def get_callbacks(arguments):
+    """Returns a list of callbacks for the model."""
     
-    return trainer
+    checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
+            monitor="val_loss",
+            dirpath=os.path.join(arguments["checkpoint_path"]),
+            filename=strftime("%Y-%m-%d %H:%M:%S", gmtime()) + "-{epoch:02d}-{val_loss:.2f}",
+            save_top_k=5,
+            mode="min",
+        )
+    samplesPerSecondBenchmark =  SamplesPerSecondBenchmark()
+
+    callbacks = [
+        checkpoint_callback,
+        samplesPerSecondBenchmark,
+    ]
+
+    return callbacks
+
 
 def main(args):
     """Main function."""
     dict_args = vars(args)
-    model = get_model(model_name, model_args, optimizer_args) # get the specified model
-    trainer = get_trainer(dict_args, trainer_args) # get the trainer
-    data = ADNIDataModule(data_args) # get the data
+    model_name = dict_args["model_name"]
+    model_specific_arguments = get_model_arguments(model_name, parsed_arguments=dict_args)
+    model = get_model(model_name=model_name, model_arguments=model_specific_arguments) # get the specified model
+    callbacks = get_callbacks(dict_args)
+    trainer = L.pytorch.Trainer(
+        accelerator=dict_args["accelerator"],
+        devices=dict_args["devices"],
+        min_epochs=1,
+        max_epochs=dict_args["max_epochs"],
+        enable_checkpointing=dict_args["enable_checkpointing"],
+        num_sanity_val_steps=0,
+        logger=get_logger(dict_args),
+        callbacks=callbacks,
+    )
+    data = ADNIDataModule(
+        dataset=dict_args["dataset"],
+        batch_size=dict_args["batch_size"],
+        num_workers=dict_args["num_workers"],
+        data_dir=dict_args["data_dir"],
+        meta_file_path=dict_args["meta_file_path"],
+        train_fraction=dict_args["train_fraction"],
+        validation_fraction=dict_args["validation_fraction"],
+        test_fraction=dict_args["test_fraction"],
+    )
+
     
     if dict_args["pretrained_path"] is not None:
         model = load_pretrained_model(dict_args["pretrained_path"], model)
     else:
         trainer.fit(model, data)
-    
+
         # load best checkpoint after training
         model = model.__class__.load_from_checkpoint(
             trainer.checkpoint_callback.best_model_path
@@ -73,29 +110,6 @@ def main(args):
     
     results = trainer.test(model, data)
     print(results)
-
-def add_global_args(parser):
-    """Adds global arguments to the parser."""
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        default="LitADNIResNet",
-        help="LitADNIResNet or different model",
-    )
-    parser.add_argument(
-        "--pretrained_path",
-        type=str,
-        default=CHECKPOINT_CONFIG["pretrained_path"],
-        help="Path to pretrained model",
-    )
-    
-    parser.add_argument(
-        "--wandb_project",
-        type=str,
-        default=WANDB_CONFIG["wandb_project"],
-        help="Name of the wandb project",
-    )
-    return parser
 
 if __name__ == "__main__":
     # Set seed for reproducibility
@@ -106,26 +120,23 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = False
 
     # beginn with parsing arguments
-    parser = ArgumentParser()
-    parser = MyTrainer.add_trainer_args(parser)
-    parser = ADNIDataModule.add_data_specific_args(parser)
-    parser = add_global_args(parser)
+    parser = ADNIParser()
+
     # figure out which model to use
-    
-    # THIS LINE IS KEY TO PULL THE MODEL NAME
     temp_args, _ = parser.parse_known_args()
     # let the model add what it needs
-    if temp_args.model_name == "LitADNIResNet":
+    if temp_args.model_name == "ResNet18":
         parser = LitADNIResNet.add_model_specific_args(parser)
-    elif temp_args.model_name == "LitADNIShuffleNetV2":
+    elif temp_args.model_name == "ShuffleNetV2":
         parser = LitADNIShuffleNetV2.add_model_specific_args(parser)
         
     # add modelname to checkpoint path
     parser.add_argument(
         "--checkpoint_path", 
         type=str, 
-        default=os.path.join(CHECKPOINT_CONFIG["checkpoint_path_without_model_name"], temp_args.wandb_project+"/", temp_args.model_name)
-    )
-        
+        default=os.path.join(DEFAULTS["CHECKPOINTING"]["checkpoint_path_without_model_name"], temp_args.wandb_project+"/", temp_args.model_name)
+    )        
     args = parser.parse_args()
+
+    # start the training with the parsed arguments
     main(args)
