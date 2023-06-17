@@ -23,12 +23,13 @@ DEFAULTS = dict(
     COMPUTATION = dict(
         accelerator="cuda",
         devices=1,
-        max_epochs=15,
+        max_epochs=2,
     ),
 
     WANDB = dict(
         wandb_project="ADNI_parsing",
         log_model=True,
+        sweep=False,
     ),
 
     CHECKPOINTING = dict(

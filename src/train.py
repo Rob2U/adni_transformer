@@ -72,6 +72,14 @@ def get_callbacks(arguments):
 def main(args):
     """Main function."""
     dict_args = vars(args)
+    wandb_logger = get_logger(dict_args)
+    # determine if a sweep should be run
+    #if dict_args["sweep"]:
+        # get the config file
+        
+    #    wandb_logger.experiment.config.update(dict_args)
+
+
     model_name = dict_args["model_name"]
     model_specific_arguments = get_model_arguments(model_name, parsed_arguments=dict_args)
     model = get_model(model_name=model_name, model_arguments=model_specific_arguments) # get the specified model
@@ -83,7 +91,7 @@ def main(args):
         max_epochs=dict_args["max_epochs"],
         enable_checkpointing=dict_args["enable_checkpointing"],
         num_sanity_val_steps=0,
-        logger=get_logger(dict_args),
+        logger=wandb_logger,
         callbacks=callbacks,
     )
     data = ADNIDataModule(
