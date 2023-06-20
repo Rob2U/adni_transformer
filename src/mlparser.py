@@ -33,8 +33,9 @@ class ADNIParser(argparse.ArgumentParser):
 
     def set_wandb_defaults(self):
         self.wandb.add_argument("--wandb_project", type=str, default=DEFAULTS['WANDB']['wandb_project'])
-        self.wandb.add_argument("--log_model", type=str, default=DEFAULTS['WANDB']['log_model'])
-        self.wandb.add_argument("--sweep", type=str, default=DEFAULTS['WANDB']['sweep'])
+        self.wandb.add_argument("--log_model", type=bool, default=DEFAULTS['WANDB']['log_model'])
+        self.wandb.add_argument("--sweep", type=bool, default=DEFAULTS['WANDB']['sweep'])
+        self.wandb.add_argument("--benchmark", type=bool, default=DEFAULTS['WANDB']['benchmark'])
 
     def set_checkpointing_defaults(self):
         self.checkpointing.add_argument("--checkpoint_path_without_model_name", type=str, default=DEFAULTS['CHECKPOINTING']['checkpoint_path_without_model_name'])

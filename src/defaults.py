@@ -30,6 +30,7 @@ DEFAULTS = dict(
         wandb_project="ADNI_parsing",
         log_model=True,
         sweep=False,
+        benchmark=False,
     ),
 
     CHECKPOINTING = dict(

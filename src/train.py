@@ -46,7 +46,8 @@ def get_logger(arguments):
             "num_epochs": arguments["max_epochs"]
         }
     )
-    wandb_logger.experiment.define_metric("SamplesPerSecond", summary="mean")
+    if(arguments["benchmark"]):
+        wandb_logger.experiment.define_metric("SamplesPerSecond", summary="mean")
     return wandb_logger
 
 def get_callbacks(arguments):
@@ -63,8 +64,10 @@ def get_callbacks(arguments):
 
     callbacks = [
         checkpoint_callback,
-        samplesPerSecondBenchmark,
     ]
+    # add benchmarking specific callbacks only if neccessary
+    if(arguments["benchmark"]):
+        callbacks.append(samplesPerSecondBenchmark)
 
     return callbacks
 
@@ -73,13 +76,6 @@ def main(args):
     """Main function."""
     dict_args = vars(args)
     wandb_logger = get_logger(dict_args)
-    # determine if a sweep should be run
-    #if dict_args["sweep"]:
-        # get the config file
-        
-    #    wandb_logger.experiment.config.update(dict_args)
-
-
     model_name = dict_args["model_name"]
     model_specific_arguments = get_model_arguments(model_name, parsed_arguments=dict_args)
     model = get_model(model_name=model_name, model_arguments=model_specific_arguments) # get the specified model

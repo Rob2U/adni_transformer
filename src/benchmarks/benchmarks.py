@@ -5,7 +5,7 @@ import time
 
 
 class SamplesPerSecondBenchmark(Callback):
-    def __init__(self, batch_interval=100):
+    def __init__(self, batch_interval=50):
         super().__init__()
         self.batch_interval = batch_interval    # defines the limit of batches for when the metric is computed the next time
         self.start_time = None
@@ -15,7 +15,7 @@ class SamplesPerSecondBenchmark(Callback):
     def on_train_epoch_start(self, trainer, pl_module):
         self.start_time = time.time()
         self.num_samples = 0
-        #self.batches_seen = 0
+        self.batch_interval = min(self.batch_interval, len(trainer.train_dataloader)//10)   # set the observation interval to 10% of the batches of one epoch
         
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         # calculate how many samples have been passed so far
