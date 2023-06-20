@@ -31,7 +31,7 @@ class ADNIParser(argparse.ArgumentParser):
         self.computation.add_argument("--accelerator", type=str, default=DEFAULTS['COMPUTATION']['accelerator'])
         self.computation.add_argument("--devices", type=int, default=DEFAULTS['COMPUTATION']['devices'])
         self.computation.add_argument("--max_epochs", type=int, default=DEFAULTS['COMPUTATION']['max_epochs'])
-        self.computation.add_argument("--precision", type=Literal["16-mixed", "bf16-mixed", 32], default=DEFAULTS['COMPUTATION']['precision'])
+        self.computation.add_argument("--precision", type=str, default=DEFAULTS['COMPUTATION']['precision'])
 
     def set_wandb_defaults(self):
         self.wandb.add_argument("--wandb_project", type=str, default=DEFAULTS['WANDB']['wandb_project'])

@@ -34,7 +34,7 @@ SWEEP_CONFIG = dict(
     ),
     parameters=dict(
         precision=dict(
-            values=["16-mixed", "bf16-mixed", 32]
+            values=["16-mixed", "32"] #"bf16-mixed",
         ),
         model_name=dict(
             values=["ShuffleNetV2"],
