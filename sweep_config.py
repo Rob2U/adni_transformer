@@ -1,4 +1,4 @@
-SWEEP_CONFIG = dict(
+""" SWEEP_CONFIG = dict(
     name="Test sweep",
     project="test_sweeps",
     program="src/train.py",
@@ -20,5 +20,36 @@ SWEEP_CONFIG = dict(
         batch_size=dict(
             values=[4, 8],
         ),        
+    ),
+) """
+
+SWEEP_CONFIG = dict(
+    name="Precision Benchmark",
+    project="benchmarks",
+    program="src/train.py",
+    method="grid",
+    metric=dict(
+        name="val_loss",
+        goal="minimize",
+    ),
+    parameters=dict(
+        precision=dict(
+            values=["16-mixed", "bf16-mixed", 32]
+        ),
+        model_name=dict(
+            values=["ShuffleNetV2"],
+        ),
+        benchmark=dict(
+            values=[True],
+        ),
+        max_epochs=dict(
+            values=[3],
+        ),
+        batch_size=dict(
+            values=[8],
+        ),
+        num_workers=dict(
+            values=[8],
+        ),
     ),
 )

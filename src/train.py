@@ -83,6 +83,7 @@ def main(args):
     trainer = L.pytorch.Trainer(
         accelerator=dict_args["accelerator"],
         devices=dict_args["devices"],
+        precision=dict_args["precision"],
         min_epochs=1,
         max_epochs=dict_args["max_epochs"],
         enable_checkpointing=dict_args["enable_checkpointing"],
