@@ -4,7 +4,7 @@
 # WANDB
 wandb/
 src/wandb/
-
+logs/
 # Python caching
 __pycache__/
 src/__pycache__/
