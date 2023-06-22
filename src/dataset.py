@@ -5,8 +5,6 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torch.utils.data import Dataset
-from config import BATCH_SIZE, NUM_WORKERS, DATA_DIR, META_FILE_PATH, TRAIN_FRACTION, VALIDATION_FRACTION, TEST_FRACTION, DATASET
-
 import os
 import numpy as np
 import pandas as pd
@@ -43,15 +41,19 @@ def get_test_tfms():
 
 
 class ADNIDataset(Dataset):
-    def __init__(self, data_dir, meta_file, transform=None, split='train', **kwargs):
+    def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
         super().__init__()
-        self.classes = ['CN', 'AD']
+        
         self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction        
         self.transform = transform
         self.split = split
-        self.kwargs = kwargs
-        
-        self.data = pd.read_csv(meta_file) # first of all load metadata
+
+        self.classes = ['CN', 'AD']
+        self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         
         
@@ -83,17 +85,12 @@ class ADNIDataset(Dataset):
         patients = self.data['PTID'].unique()
         patients = np.random.permutation(patients)
         
-        train_fraction = self.kwargs["train_fraction"]
-        val_fraction = self.kwargs["val_fraction"]
-        test_fraction = self.kwargs["test_fraction"]
-        
-
         if self.split == 'train':
-            patients = patients[:int(patients.shape[0] * train_fraction)]
+            patients = patients[:int(patients.shape[0] * self.train_fraction)]
         elif self.split == 'val':
-            patients = patients[int(patients.shape[0] * train_fraction):int(patients.shape[0] * (train_fraction + val_fraction))]
+            patients = patients[int(patients.shape[0] * self.train_fraction):int(patients.shape[0] * (self.train_fraction + self.validation_fraction))]
         elif self.split == 'test':
-            patients = patients[int(patients.shape[0] * (train_fraction + val_fraction)):] # leave test_fraction cause unnecessary
+            patients = patients[int(patients.shape[0] * (self.train_fraction + self.validation_fraction)):] # leave test_fraction cause unnecessary
         else:
             raise ValueError('split must be one of train, val, test')
             
@@ -109,15 +106,18 @@ class ADNIDataset(Dataset):
         
         
 class ADNIDatasetRAM(Dataset):
-    def __init__(self, data_dir, meta_file, transform=None, split='train', **kwargs):
+    def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
         super().__init__()
-        self.classes = ['CN', 'AD']
         self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction        
         self.transform = transform
         self.split = split
-        self.kwargs = kwargs
-        
-        self.data = pd.read_csv(meta_file) # first of all load metadata
+
+        self.classes = ['CN', 'AD']
+        self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         self.load_data() # then load the data from the .npy.npz files and reduce to relevant columns
         # drop everything else
@@ -157,17 +157,13 @@ class ADNIDatasetRAM(Dataset):
         np.random.seed(42)
         patients = self.data['PTID'].unique()
         patients = np.random.permutation(patients)
-        
-        train_fraction = kwargs["train_fraction"]
-        val_fraction = kwargs["val_fraction"]
-        test_fraction = kwargs["test_fraction"]
 
         if self.split == 'train':
-            patients = patients[:int(patients.shape[0] * train_fraction)]
+            patients = patients[:int(patients.shape[0] * self.train_fraction)]
         elif self.split == 'val':
-            patients = patients[int(patients.shape[0] * train_fraction):int(patients.shape[0] * (train_fraction + val_fraction))]
+            patients = patients[int(patients.shape[0] * self.train_fraction):int(patients.shape[0] * (self.train_fraction + self.validation_fraction))]
         elif self.split == 'test':
-            patients = patients[int(patients.shape[0] * (train_fraction + val_fraction)):]
+            patients = patients[int(patients.shape[0] * (self.train_fraction + self.validation_fraction)):]
         else:
             raise ValueError('split must be one of train, val, test')
             
@@ -185,28 +181,18 @@ class ADNIDatasetRAM(Dataset):
 class ADNIDataModule(L.LightningDataModule):
     """ADNI datamodule"""
 
-    def __init__(self, dataset, data_dir, meta_file_path, batch_size, num_workers, **kwargs):
+    def __init__(self, dataset, batch_size, num_workers, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
         super().__init__()
-        self.data_dir = data_dir
-        self.meta_file_path = meta_file_path
+        self.dataset = dataset
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.dataset = dataset
-        self.kwargs = kwargs
-
-    @staticmethod
-    def add_data_specific_args(parent_parser):
-        """Adds data-specific arguments to the parser."""
-        parser = parent_parser.add_argument_group("ADNIDataModule")
-        parser.add_argument("--data_dir", type=str, default=DATA_DIR)
-        parser.add_argument("--meta_file_path", type=str, default=META_FILE_PATH)
-        parser.add_argument("--batch_size", type=int, default=BATCH_SIZE)
-        parser.add_argument("--num_workers", type=int, default=NUM_WORKERS)
-        parser.add_argument("--dataset", type=str, default=DATASET)
-        parser.add_argument("--train_fraction", type=float, default=TRAIN_FRACTION)
-        parser.add_argument("--val_fraction", type=float, default=VALIDATION_FRACTION)
-        parser.add_argument("--test_fraction", type=float, default=TEST_FRACTION)
-        return parent_parser
+        self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction
+        self.transform = transform
+        self.split = split
 
     # execute on single GPU
     def prepare_data(self):
@@ -224,11 +210,10 @@ class ADNIDataModule(L.LightningDataModule):
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
         
-        self.train_ds = dataset(self.data_dir, self.meta_file_path, train_transform, split='train', **self.kwargs)
-        self.val_ds = dataset(self.data_dir, self.meta_file_path, test_transform, split='val', **self.kwargs)
-        self.test_ds = dataset(self.data_dir, self.meta_file_path, test_transform, split='test', **self.kwargs)
-            
-        
+        self.train_ds = dataset(self.data_dir, self.meta_file_path, self.train_fraction, self.validation_fraction, self.test_fraction, train_transform, split='train')
+        self.val_ds = dataset(self.data_dir, self.meta_file_path, self.train_fraction, self.validation_fraction, self.test_fraction, test_transform, split='val')
+        self.test_ds = dataset(self.data_dir, self.meta_file_path, self.train_fraction, self.validation_fraction, self.test_fraction, test_transform, split='test')
+               
     def train_dataloader(self):
         return DataLoader(
             self.train_ds,
