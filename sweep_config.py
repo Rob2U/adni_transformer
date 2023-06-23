@@ -12,7 +12,7 @@ SWEEP_CONFIG = dict(
             values=["ResNet18", "ShuffleNetV2"],
         ),
         train_fraction=dict(
-            values=[0.7, 0.8],
+            values=[0.7],
         ),
         learning_rate=dict(
             values=[1e-2, 1e-3, 1e-4, 1e-5],
@@ -21,7 +21,7 @@ SWEEP_CONFIG = dict(
             values=[4, 8, 12],
         ),
         max_epochs=dict(
-            values=[10, 20],
+            values=[10],
         ),
         benchmark=dict(
             values=[True],
