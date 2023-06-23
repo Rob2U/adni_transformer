@@ -8,6 +8,7 @@
 * **squeue** shows all running jobs (takes some time to update)
 * **sjob** shows the jobs started by oneself
 * **scancel jobid** ends the job
+* **sbatch** starts a job via a shell-file
 
 ## tmux
 * **tmux new -s SessionName** creates a new tmux Session
