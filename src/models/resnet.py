@@ -81,18 +81,17 @@ class LitADNIResNet(L.LightningModule):
         self.log(f"{mode}_loss", loss, prog_bar=True)
         self.log(f"{mode}_acc", acc, prog_bar=True)
         
-        self.iteration_labels = torch.cat((self.iteration_labels, labels), dim=0)
-        self.iteration_preds = torch.cat((self.iteration_preds, preds), dim=0)
+        if mode == "val":
+            self.iteration_labels = torch.cat((self.iteration_labels, labels), dim=0)
+            self.iteration_preds = torch.cat((self.iteration_preds, preds), dim=0)
         
         return loss
     
     def on_train_epoch_end(self):
-        self.iteration_labels = torch.Tensor([], device="cpu")
-        self.iteration_preds = torch.Tensor([], device="cpu")
+        pass
     
     def on_test_epoch_end(self):
-        self.iteration_labels = torch.Tensor([], device="cpu")
-        self.iteration_preds = torch.Tensor([], device="cpu")
+        pass
     
     def on_validation_epoch_end(self):
         y_true = self.iteration_labels.long()
