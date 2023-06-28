@@ -6,18 +6,25 @@ import lightning as L
 import torch
 from time import gmtime, strftime
 from pytorch_lightning.loggers import WandbLogger
-from benchmarks.benchmarks import SamplesPerSecondBenchmark
+from benchmarks.benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
 from mlparser import ADNIParser
 from defaults import DEFAULTS, MODEL_DEFAULTS
 
-def load_pretrained_model(pretrained_path, model):
+def get_model_class(model_name):
+    """Returns the model class for a given model name."""
+    if model_name == "ResNet18":
+        return LitADNIResNet
+    elif model_name == "ShuffleNetV2":
+        return LitADNIShuffleNetV2
+
+def load_pretrained_model(pretrained_path, model_class):
     """Loads a pretrained model from a checkpoint file."""
     print(f"Loading pretrained model from {pretrained_path} ...")
     # Automatically loads the model with the saved hyperparameters
-    model = model.__class__.load_from_checkpoint(pretrained_path)
+    model = model_class.load_from_checkpoint(pretrained_path)
     return model
 
 def get_model_arguments(model_name, parsed_arguments):
@@ -28,12 +35,9 @@ def get_model_arguments(model_name, parsed_arguments):
     model_args["learning_rate"] = parsed_arguments["learning_rate"]
     return model_args
 
-def get_model(model_name, model_arguments):
-    """Decides which model to use"""
-    if model_name == "ResNet18":
-        model = LitADNIResNet(model_arguments)
-    elif model_name == "ShuffleNetV2":
-        model = LitADNIShuffleNetV2(model_arguments)
+def get_model(model_class, model_arguments):
+    """instantiates a model with the given arguments."""
+    model = model_class(model_arguments)
     return model
 
 def get_logger(arguments):
@@ -61,6 +65,7 @@ def get_callbacks(arguments):
             mode="min",
         )
     samplesPerSecondBenchmark =  SamplesPerSecondBenchmark()
+    gpuMetricsBenchmark = GpuMetricsBenchmark()
 
     callbacks = [
         checkpoint_callback,
@@ -68,6 +73,7 @@ def get_callbacks(arguments):
     # add benchmarking specific callbacks only if neccessary
     if(arguments["benchmark"]):
         callbacks.append(samplesPerSecondBenchmark)
+        callbacks.append(gpuMetricsBenchmark)
 
     return callbacks
 
@@ -77,12 +83,16 @@ def main(args):
     dict_args = vars(args)
     wandb_logger = get_logger(dict_args)
     model_name = dict_args["model_name"]
+    model_class = get_model_class(model_name)
     model_specific_arguments = get_model_arguments(model_name, parsed_arguments=dict_args)
-    model = get_model(model_name=model_name, model_arguments=model_specific_arguments) # get the specified model
+    model = get_model(model_class=model_class, model_arguments=model_specific_arguments) # get the specified model
+    if dict_args["compile"]:
+        model = torch.compile(model)
     callbacks = get_callbacks(dict_args)
     trainer = L.pytorch.Trainer(
         accelerator=dict_args["accelerator"],
         devices=dict_args["devices"],
+        precision=dict_args["precision"],
         min_epochs=1,
         max_epochs=dict_args["max_epochs"],
         enable_checkpointing=dict_args["enable_checkpointing"],
@@ -103,12 +113,12 @@ def main(args):
 
     
     if dict_args["pretrained_path"] is not None:
-        model = load_pretrained_model(dict_args["pretrained_path"], model)
+        model = load_pretrained_model(dict_args["pretrained_path"], model_name)
     else:
         trainer.fit(model, data)
 
         # load best checkpoint after training
-        model = model.__class__.load_from_checkpoint(
+        model = model_class.load_from_checkpoint(
             trainer.checkpoint_callback.best_model_path
         )
     
