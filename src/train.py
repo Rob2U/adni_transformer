@@ -6,7 +6,7 @@ import lightning as L
 import torch
 from time import gmtime, strftime
 from pytorch_lightning.loggers import WandbLogger
-from benchmarks.benchmarks import SamplesPerSecondBenchmark
+from benchmarks.benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
@@ -61,6 +61,7 @@ def get_callbacks(arguments):
             mode="min",
         )
     samplesPerSecondBenchmark =  SamplesPerSecondBenchmark()
+    gpuMetricsBenchmark = GpuMetricsBenchmark()
 
     callbacks = [
         checkpoint_callback,
@@ -68,6 +69,7 @@ def get_callbacks(arguments):
     # add benchmarking specific callbacks only if neccessary
     if(arguments["benchmark"]):
         callbacks.append(samplesPerSecondBenchmark)
+        callbacks.append(gpuMetricsBenchmark)
 
     return callbacks
 
