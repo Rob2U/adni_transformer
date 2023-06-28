@@ -25,6 +25,7 @@ DEFAULTS = dict(
         devices=1,
         max_epochs=2,
         precision="32",
+        compile=False,
     ),
 
     WANDB = dict(
