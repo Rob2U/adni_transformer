@@ -1,7 +1,7 @@
 #!/bin/bash -eux
 #SBATCH --job-name=adni_transformer_job1
 #SBATCH --output=./logs/adni_transformer%j.out
-#SBATCH --partition=gpu # -p
+#SBATCH --partition=gpupro # -p
 #SBATCH --cpus-per-task=8 # -c
 #SBATCH  --gpus=1 # -G
 #SBATCH --mem=16gb # -m

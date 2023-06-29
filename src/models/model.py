@@ -28,6 +28,8 @@ class LitModel(L.LightningModule):
         self.model = aModel()(**kwargs)
         self.learning_rate = learning_rate
         self.save_hyperparameters()
+        self.iteration_preds = torch.Tensor([], device="cpu")
+        self.iteration_labels = torch.Tensor([], device="cpu")
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
 
     @staticmethod  # register new arguments here
@@ -56,6 +58,11 @@ class LitModel(L.LightningModule):
 
         self.log(f"{mode}_loss", loss, prog_bar=True)
         self.log(f"{mode}_acc", acc, prog_bar=True)
+    
+        if mode == "val":
+            self.iteration_labels = torch.cat((self.iteration_labels, labels), dim=0)
+            self.iteration_preds = torch.cat((self.iteration_preds, preds), dim=0)
+                    
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -67,3 +74,19 @@ class LitModel(L.LightningModule):
 
     def test_step(self, batch, batch_idx):
         self._calculate_loss(batch, mode="test")
+
+    def on_validation_epoch_end(self):
+        y_true = self.iteration_labels.long()
+        y_pred = self.iteration_preds
+        y_pred = F.softmax(y_pred, dim=1)  # get the probability of the positive class
+        
+        self.iteration_labels = torch.Tensor([], device="cpu")
+        self.iteration_preds = torch.Tensor([], device="cpu")
+
+        acc = Accuracy(task="multiclass", num_classes=2)(y_pred, y_true)
+        roc = AUROC(task="multiclass", num_classes=2)(y_pred, y_true)
+        f1 = F1Score(task="multiclass", num_classes=2)(y_pred, y_true)
+
+        self.log('valid_acc', acc)
+        self.log('valid_roc', roc)
+        self.log('valid_f1', f1)

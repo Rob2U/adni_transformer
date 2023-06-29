@@ -6,11 +6,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from config import LEARNING_RATE, WIDTH_MULT
 from torch.autograd import Variable
 from collections import OrderedDict
 from torch.nn import init
 import math
+from defaults import MODEL_DEFAULTS
 
 
 def conv_bn(inp, oup, stride):
@@ -107,8 +107,9 @@ class InvertedResidual(nn.Module):
 
 
 class ADNIShuffleNetV2(nn.Module):
-    def __init__(self, width_mult, sample_size=128, num_classes=2, **kwargs):
+    def __init__(self, model_arguments, sample_size=128, num_classes=2):
         super(ADNIShuffleNetV2, self).__init__()
+        width_mult = model_arguments["width_mult"]
         assert sample_size % 16 == 0
         
         self.stage_repeats = [4, 8, 4]
@@ -189,37 +190,37 @@ def get_fine_tuning_parameters(model, ft_portion):
         raise ValueError("Unsupported ft_portion: 'complete' or 'last_layer' expected")
 
 #def get_model(width_mult, sample_size, num_classes):
-def get_model(**kwargs):
+def get_model(model_args):
     """
     Returns the model.
     """
-    model = ADNIShuffleNetV2(**kwargs)
+    model = ADNIShuffleNetV2(model_args)
     #model = ADNIShuffleNetV2(sample_size, width_mult, num_classes)
     return model
    
 
 class LitADNIShuffleNetV2(L.LightningModule):
-    def __init__(self, learning_rate, **kwargs):
+    def __init__(self, model_arguments):
         super().__init__()
-        self.model = ADNIShuffleNetV2(**kwargs)
-        self.learning_rate = learning_rate
+        self.model = ADNIShuffleNetV2(model_arguments)
+        self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
+        self.iteration_preds = torch.Tensor([], device="cpu")
+        self.iteration_labels = torch.Tensor([], device="cpu")
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
 
     @staticmethod  # register new arguments here
     def add_model_specific_args(parent_parser):
         """Adds model-specific arguments to the parser."""
-
         parser = parent_parser.add_argument_group("LitADNIShuffleNetV2")
-        parser.add_argument("--learning_rate", type=float, default=LEARNING_RATE, help="provides learning rate for the optimizer")
-        parser.add_argument("--width_mult", type=float, default=WIDTH_MULT, help="provides width multiplier for the model")
+        parser.add_argument("--width_mult", type=float, default=MODEL_DEFAULTS["ShuffleNetV2"]["width_mult"], help="provides width multiplier for the model")
         return parent_parser
 
     def forward(self, x): 
         return self.model(x)
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
         lr_scheduler = optim.lr_scheduler.MultiStepLR(
             optimizer, milestones=[100, 150], gamma=0.1
         )
@@ -233,6 +234,11 @@ class LitADNIShuffleNetV2(L.LightningModule):
 
         self.log(f"{mode}_loss", loss, prog_bar=True)
         self.log(f"{mode}_acc", acc, prog_bar=True)
+        
+        if mode == "val":
+            self.iteration_labels = torch.cat((self.iteration_labels, labels), dim=0)
+            self.iteration_preds = torch.cat((self.iteration_preds, preds), dim=0)
+        
         return loss
 
     def training_step(self, batch, batch_idx):
@@ -244,12 +250,22 @@ class LitADNIShuffleNetV2(L.LightningModule):
     def test_step(self, batch, batch_idx):
         return self._calculate_loss(batch, mode="test")
     
+    def on_validation_epoch_end(self):
+        y_true = self.iteration_labels.long()
+        y_pred = self.iteration_preds
+        y_pred = F.softmax(y_pred, dim=1)  # get the probability of the positive class
+        
+        self.iteration_labels = torch.Tensor([], device="cpu")
+        self.iteration_preds = torch.Tensor([], device="cpu")
 
-# TODO: change the parsed arguments to match the actual model
-# TODO: understand architecture and weird hardcoded values
-# TODO: add specific default-parameters in config file
-# TODO: test a training run
-# TODO: commit to github
+        acc = Accuracy(task="multiclass", num_classes=2)(y_pred, y_true)
+        roc = AUROC(task="multiclass", num_classes=2)(y_pred, y_true)
+        f1 = F1Score(task="multiclass", num_classes=2)(y_pred, y_true)
+
+        self.log('valid_acc', acc)
+        self.log('valid_roc', roc)
+        self.log('valid_f1', f1)
+    
 
 if __name__ == "__main__":
     model = get_model(sample_size=128, width_mult=1., num_classes=600)
