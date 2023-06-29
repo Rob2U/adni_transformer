@@ -10,7 +10,7 @@ from benchmarks.benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
-from vit import LitADNIViT
+from models.vit import LitADNIViT
 from mlparser import ADNIParser
 from defaults import DEFAULTS, MODEL_DEFAULTS
 

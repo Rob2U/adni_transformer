@@ -5,10 +5,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from monai.networks.nets import ViT
-from config import LEARNING_RATE
+from defaults import MODEL_DEFAULTS
 
 class ADNIViT(nn.Module):
-    def __init__(self, **kwargs):
+    def __init__(self, model_aruments):
         
         super().__init__()
         self.vit = ViT(in_channels=1, img_size=(128,128,128), patch_size=(8,8,8), pos_embed='conv', classification=True, num_classes=2, post_activation=False)
@@ -20,10 +20,10 @@ class ADNIViT(nn.Module):
 class LitADNIViT(L.LightningModule):
     """A lit Model."""
 
-    def __init__(self, learning_rate, **kwargs):
+    def __init__(self, model_arguments):
         super().__init__()
-        self.model = ADNIViT(**kwargs)
-        self.learning_rate = learning_rate
+        self.model = ADNIViT(model_arguments)
+        self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
 
@@ -32,10 +32,9 @@ class LitADNIViT(L.LightningModule):
         """Adds model-specific arguments to the parser."""
 
         parser = parent_parser.add_argument_group("LitADNIViT")
-        parser.add_argument("--learning_rate", type=float, default=LEARNING_RATE, help="provides learning rate for the optimizer")
         return parent_parser
 
-    def forward(self, x, **kwargs): 
+    def forward(self, x): 
         return self.model(x)
 
     def configure_optimizers(self):

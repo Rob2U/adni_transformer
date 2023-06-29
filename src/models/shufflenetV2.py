@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
+from torchmetrics import AUROC, Accuracy, F1Score
 from collections import OrderedDict
 from torch.nn import init
 import math
@@ -227,15 +228,19 @@ class LitADNIShuffleNetV2(L.LightningModule):
         return [optimizer], [lr_scheduler]
 
     def _calculate_loss(self, batch, mode="train"):
-        img, label = batch
-        preds = self.forward(img)
-        loss = F.cross_entropy(preds, label)
-        acc = (preds.argmax(dim=-1) == label).float().mean()
+        imgs, labels = batch
+        
+
+        preds = self.forward(imgs)
+        loss = F.cross_entropy(preds, labels)
+        acc = (preds.argmax(dim=-1) == labels).float().mean()
 
         self.log(f"{mode}_loss", loss, prog_bar=True)
         self.log(f"{mode}_acc", acc, prog_bar=True)
         
         if mode == "val":
+            labels = labels.cpu()
+            preds = preds.cpu()
             self.iteration_labels = torch.cat((self.iteration_labels, labels), dim=0)
             self.iteration_preds = torch.cat((self.iteration_preds, preds), dim=0)
         

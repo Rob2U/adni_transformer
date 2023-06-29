@@ -64,10 +64,8 @@ class LitADNIResNet(L.LightningModule):
 
     def _calculate_loss(self, batch, mode="train"):
         imgs, labels = batch
-        imgs = imgs
-        labels = labels.cpu()
         
-        preds = self.forward(imgs).cpu()
+        preds = self.forward(imgs)
         loss = F.cross_entropy(preds, labels)
         """
         # goal is to take auc as indicator for performance in validation
@@ -82,6 +80,8 @@ class LitADNIResNet(L.LightningModule):
         self.log(f"{mode}_acc", acc, prog_bar=True)
         
         if mode == "val":
+            labels = labels.cpu()
+            preds = preds.cpu()
             self.iteration_labels = torch.cat((self.iteration_labels, labels), dim=0)
             self.iteration_preds = torch.cat((self.iteration_preds, preds), dim=0)
         
