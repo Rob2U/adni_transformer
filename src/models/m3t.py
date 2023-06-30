@@ -108,18 +108,31 @@ class ProjectionBlock(nn.Module):
 
 # ------ part of Projection Block
 class zweiDCNNPretrained(nn.Module): # TODO
-    def __init__(self, model_aruments):
+    def __init__(self, model_arguments):
         super().__init__()
-        weights = ResNet18_Weights.DEFAULT
-        resnet18 = resnet18(weights=weights,progress=True)
-        self.resnet18 = torch.nn.Sequential(*(list(resnet18.children())[:-2])) # cut off adaptive average pooling and linear layer
-        self.transforms = weights.transforms()
+        self.resnet18 = resnet18(
+            weights='IMAGENET1K_V1',
+            progress=True
+        )
+        self.resnet18 = torch.nn.Sequential(*(list(self.resnet18.children())[:-2])) # cut off adaptive average pooling and linear layer
+        self.resnet18.eval()
+        self.resnet18.requires_grad_(False)
+        self.global_avg_pool = nn.AvgPool3d(kernel_size=(512,4,4)) # has to be 32x4x4 because of the output shape of resnet18
 
     def forward(self, x):
-        with torch.no_grad():
-            x = self.transforms(x)
-            x = self.resnet18(x)
-        return x
+        # broadcast to 3 channels
+        print(x.shape)
+        x = torch.zeros((x.shape[0], 3, x.shape[1], x.shape[2], x.shape[3])).to(x.device) + x.reshape((x.shape[0], 1, x.shape[1], x.shape[2], x.shape[3])) # input: CxLxL -> resnet18: Cx3xLxL
+        x = x.reshape((x.shape[0], x.shape[2], 3, x.shape[3], x.shape[4]))
+
+        # apply resnet18 along the 1st and 2nd dimension
+        # no clue if this can be done more efficiently, braucht halt sau viel speicher
+        out = torch.zeros((x.shape[0], x.shape[1], C3D, 1, 1)).to(x.device)
+        for j in range(x.shape[1]):
+            out[:,j,:,:,:] = self.global_avg_pool(self.resnet18(x[:,j,:,:,:]))
+        out = out.reshape((x.shape[0], x.shape[1], C3D))
+        
+        return out # output: batchsize x sequencelength x C3D
 
 
 class NonLinearProjection(nn.Module):
@@ -168,7 +181,7 @@ class PositionPlaneEmbedding(nn.Module):
 
 # -------
 
-class Transformer(nn.Module): # TODO
+class Transformer(nn.Module):
     def __init__(self, model_arguments):
         super().__init__()
 
@@ -178,7 +191,7 @@ class Transformer(nn.Module): # TODO
     def forward(self, x):
         return self.decoder(self.encoder(x))
 
-class TransformerDecoder(nn.Module): # TODO
+class TransformerDecoder(nn.Module):
     def __init__(self, model_arguments):
         super().__init__()
         self.linear1 = nn.Linear(in_features=TOKEN_D, out_features=TRANSFORMER_OUT_CLASSES)
@@ -293,7 +306,10 @@ class LitADNIM3T(L.LightningModule):
 
     
 if __name__ == "__main__":
-    device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    transformer = Transformer(model_arguments={})
-    transformer.to(device)
-    summary.summary(transformer, (3*IN_DIM + 4, TOKEN_D), batch_size=32, device=device)
+    device = torch.device("cpu")
+    # transformer = Transformer(model_arguments={})
+    # transformer.to(device)
+    # summary.summary(transformer, (3*IN_DIM + 4, TOKEN_D), batch_size=32, device=device)
+    resnet = zweiDCNNPretrained(model_arguments={})
+    resnet.to(device)
+    summary.summary(resnet, (C3D, 128, 128), batch_size=32, device=device)
