@@ -9,6 +9,7 @@ import os
 import numpy as np
 import pandas as pd
 import monai
+from defaults import DEFAULTS
 
 def get_tfms():
     transforms = monai.transforms.Compose([monai.transforms.RandScaleCrop([0.95, 0.95, 0.95]),
@@ -237,3 +238,31 @@ class ADNIDataModule(L.LightningDataModule):
             num_workers=self.num_workers,
             shuffle=False,
         )
+
+
+if __name__ == "__main__":
+    module = ADNIDataModule(
+        dataset=DEFAULTS["DATALOADING"]["dataset"],
+        batch_size=DEFAULTS["HYPERPARAMETERS"]["batch_size"],
+        num_workers=DEFAULTS["DATALOADING"]["num_workers"],
+        data_dir=DEFAULTS["DATALOADING"]["data_dir"],
+        meta_file_path=DEFAULTS["DATALOADING"]["meta_file_path"],
+        train_fraction=DEFAULTS["HYPERPARAMETERS"]["train_fraction"],
+        validation_fraction=DEFAULTS["HYPERPARAMETERS"]["validation_fraction"],
+        test_fraction=DEFAULTS["HYPERPARAMETERS"]["test_fraction"],
+    )
+    module.setup(stage="fit")
+    train_ds = module.train_ds
+    val_ds = module.val_ds
+    test_ds = module.test_ds
+
+
+    train_df = train_ds.data
+    val_df = val_ds.data
+    test_df = test_ds.data
+
+    all_data = pd.concat([train_df, val_df, test_df], axis=0)
+    num_ad = len(test_df[test_df['DX'] == 'AD'])
+    num_cn = len(test_df[test_df['DX'] == 'CN'])
+    print(all_data.head())
+    print(f"Number of AD: {num_ad}, Number of CN: {num_cn}")

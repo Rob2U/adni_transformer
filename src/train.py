@@ -10,6 +10,7 @@ from benchmarks.benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
+from models.vit import LitADNIViT
 from mlparser import ADNIParser
 from defaults import DEFAULTS, MODEL_DEFAULTS
 
@@ -19,6 +20,8 @@ def get_model_class(model_name):
         return LitADNIResNet
     elif model_name == "ShuffleNetV2":
         return LitADNIShuffleNetV2
+    elif model_name == "ViT":
+        return LitADNIViT
 
 def load_pretrained_model(pretrained_path, model_class):
     """Loads a pretrained model from a checkpoint file."""
@@ -96,7 +99,7 @@ def main(args):
         min_epochs=1,
         max_epochs=dict_args["max_epochs"],
         enable_checkpointing=dict_args["enable_checkpointing"],
-        num_sanity_val_steps=0,
+        #num_sanity_val_steps=0,
         logger=wandb_logger,
         callbacks=callbacks,
     )
@@ -143,6 +146,8 @@ if __name__ == "__main__":
         parser = LitADNIResNet.add_model_specific_args(parser)
     elif temp_args.model_name == "ShuffleNetV2":
         parser = LitADNIShuffleNetV2.add_model_specific_args(parser)
+    elif temp_args.model_name == "ViT":
+        parser = LitADNIViT.add_model_specific_args(parser)
         
     # add modelname to checkpoint path
     parser.add_argument(
