@@ -5,8 +5,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torchmetrics import AUROC, Accuracy, F1Score
 from monai.networks.nets import resnet18
-from models import summary
 from defaults import MODEL_DEFAULTS
+import models.summary as summary
 
 class ADNIResNet(nn.Module):
     def __init__(self, model_args):
@@ -19,9 +19,9 @@ class ADNIResNet(nn.Module):
         self.model.add_module("linear", list(resnet.children())[-1])
         self.model.to(model_args["accelerator"])
         self.model.bn1 = torch.nn.Identity()
-        #summary.summary(self.model, (1, 128, 128, 128), batch_size=32)
-        #
-        # ("Number of parameters: ", sum(p.numel() for p in self.model.parameters() if p.requires_grad))
+        summary.summary(self.model, (1, 128, 128, 128), batch_size=32)
+        
+        ("Number of parameters: ", sum(p.numel() for p in self.model.parameters() if p.requires_grad))
     
 
     def forward(self, x):
@@ -117,3 +117,6 @@ class LitADNIResNet(L.LightningModule):
 
     def test_step(self, batch, batch_idx):
         return self._calculate_loss(batch, mode="test")
+    
+if __name__ == "__main__":
+    resNet = ADNIResNet(MODEL_DEFAULTS["ResNet18"])

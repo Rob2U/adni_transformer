@@ -231,7 +231,7 @@ class LitADNIShuffleNetV2(L.LightningModule):
         imgs, labels = batch
         
 
-        preds = self.forward(imgs)
+        preds = self.forward(imgs) 
         loss = F.cross_entropy(preds, labels)
         acc = (preds.argmax(dim=-1) == labels).float().mean()
 

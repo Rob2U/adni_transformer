@@ -99,7 +99,7 @@ def main(args):
         min_epochs=1,
         max_epochs=dict_args["max_epochs"],
         enable_checkpointing=dict_args["enable_checkpointing"],
-        num_sanity_val_steps=0,
+        #num_sanity_val_steps=0,
         logger=wandb_logger,
         callbacks=callbacks,
     )
