@@ -32,15 +32,19 @@ TRANSFORMER_OUT_CLASSES = 2
 
 
 class ADNIM3T(nn.Module):
-    def __init__(self, model_aruments):
-        
+    def __init__(self, model_arguments):
         super().__init__()
+        self.CNN3D = dreiDCNN(model_arguments)
+        self.split = SplitModule(model_arguments)
+        self.projection = ProjectionBlock(model_arguments)
+        self.CNN2D = zweiDCNNPretrained(model_arguments)
+        self.transformer = Transformer(model_arguments)
         
     
     def forward(self, x):
-        return x
+        return self.transformer(self.CNN2D(self.projection(self.split(self.CNN3D(x)))))
     
-class dreiDCNN(nn.Module):
+class dreiDCNN(nn.Module): # out shape: (batch_size, C3D, L, L, L)
     def __init__(self, model_aruments):
         super().__init__()
         self.conv1 = nn.Conv3d(
@@ -69,34 +73,33 @@ class dreiDCNN(nn.Module):
         
         return conv_block_2_out
 
-class SplitModule(nn.Module):
-    def __init__(self, model_aruments):
+class SplitModule(nn.Module):  # out shape: (batch_size, 3*IN_DIM, C3D, IN_DIM, IN_DIM)
+    def __init__(self, model_arguments):
         super().__init__()
 
     def split_coronal(self, x):
-        coronal = torch.split(x, 1, dim=0)
+        coronal = torch.split(x, 1, dim=1)
         coronal = torch.cat(coronal)
-        coronal = torch.reshape(coronal,(IN_DIM, IN_DIM, IN_DIM))
+        coronal = torch.reshape(coronal,(-1, IN_DIM, C3D, IN_DIM, IN_DIM))
         return coronal
 
     def split_sagittal(self, x):
-        sagittal = torch.split(x, 1, dim=1)
+        sagittal = torch.split(x, 1, dim=2)
         sagittal = torch.cat(sagittal)
-        sagittal = torch.reshape(sagittal,(IN_DIM, IN_DIM, IN_DIM))
+        sagittal = torch.reshape(sagittal,(-1, IN_DIM, C3D, IN_DIM, IN_DIM))
         return sagittal
 
     def split_axial(self, x):
-        axial = torch.split(x, 1, dim=2)
+        axial = torch.split(x, 1, dim=3)
         axial = torch.cat(axial)
-        axial = torch.reshape(axial,(IN_DIM, IN_DIM, IN_DIM))
+        axial = torch.reshape(axial,(-1, IN_DIM, C3D, IN_DIM, IN_DIM))
         return axial
 
     def forward(self, x):
-        return torch.cat((self.split_coronal(x), self.split_sagittal(x), self.split_axial(x)))
+        return torch.cat((self.split_coronal(x), self.split_sagittal(x), self.split_axial(x)), dim=1)
     
-
-class ProjectionBlock(nn.Module):
-    def __init__(self, model_aruments):
+class ProjectionBlock(nn.Module): # out shape: (batch_size, 3*IN_DIM + 4, C3D)
+    def __init__(self, model_arguments):
         super().__init__()
 
         self.zweiDCNN = zweiDCNNPretrained()
@@ -107,7 +110,7 @@ class ProjectionBlock(nn.Module):
         return self.embedding(self.projection(self.zweiDCNN(x)))
 
 # ------ part of Projection Block
-class zweiDCNNPretrained(nn.Module): # TODO
+class zweiDCNNPretrained(nn.Module):
     def __init__(self, model_arguments):
         super().__init__()
         self.resnet18 = resnet18(
@@ -121,12 +124,11 @@ class zweiDCNNPretrained(nn.Module): # TODO
 
     def forward(self, x):
         # broadcast to 3 channels
-        print(x.shape)
         x = torch.zeros((x.shape[0], 3, x.shape[1], x.shape[2], x.shape[3])).to(x.device) + x.reshape((x.shape[0], 1, x.shape[1], x.shape[2], x.shape[3])) # input: CxLxL -> resnet18: Cx3xLxL
         x = x.reshape((x.shape[0], x.shape[2], 3, x.shape[3], x.shape[4]))
 
         # apply resnet18 along the 1st and 2nd dimension
-        # no clue if this can be done more efficiently, braucht halt sau viel speicher
+        # no clue if this can be done more efficiently, braucht halt sau viel speicher und dauert sau lange
         out = torch.zeros((x.shape[0], x.shape[1], C3D, 1, 1)).to(x.device)
         for j in range(x.shape[1]):
             out[:,j,:,:,:] = self.global_avg_pool(self.resnet18(x[:,j,:,:,:]))
@@ -136,7 +138,7 @@ class zweiDCNNPretrained(nn.Module): # TODO
 
 
 class NonLinearProjection(nn.Module):
-    def __init__(self, model_aruments):
+    def __init__(self, model_arguments):
         super().__init__()
 
         self.linear1 = nn.Linear(in_features=C2D_split, out_features=LINEAR_HIDDEN_NEURONS_split)
@@ -149,7 +151,7 @@ class NonLinearProjection(nn.Module):
 
 
 class PositionPlaneEmbedding(nn.Module):
-    def __init__(self, model_aruments):
+    def __init__(self, model_arguments):
         super().__init__()
 
         self.class_tkn = nn.Parameter(torch.zeros(TOKEN_D))
@@ -181,7 +183,7 @@ class PositionPlaneEmbedding(nn.Module):
 
 # -------
 
-class Transformer(nn.Module):
+class Transformer(nn.Module):  # out shape: (batch_size, TRANSFORMER_OUT_CLASSES)
     def __init__(self, model_arguments):
         super().__init__()
 
@@ -235,7 +237,7 @@ class LitADNIM3T(L.LightningModule):
 
     def __init__(self, model_arguments):
         super().__init__()
-        self.model = ADNIViT(model_arguments)
+        self.model = ADNIM3T(model_arguments)
         self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
@@ -310,6 +312,16 @@ if __name__ == "__main__":
     # transformer = Transformer(model_arguments={})
     # transformer.to(device)
     # summary.summary(transformer, (3*IN_DIM + 4, TOKEN_D), batch_size=32, device=device)
-    resnet = zweiDCNNPretrained(model_arguments={})
-    resnet.to(device)
-    summary.summary(resnet, (C3D, 128, 128), batch_size=32, device=device)
+    # resnet = zweiDCNNPretrained(model_arguments={})
+    # resnet.to(device)
+    # summary.summary(resnet, (C3D, 128, 128), batch_size=32, device=device)
+    
+    splitModule = SplitModule(model_arguments={})
+    splitModule.to(device)
+    
+    C3D = 2
+    
+    print(splitModule.split_coronal(torch.randn(32, C3D, 128, 128, 128)).shape)
+    
+    
+    summary.summary(splitModule, (C3D, 128, 128, 128), batch_size=32, device=device)
