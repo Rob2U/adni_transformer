@@ -102,9 +102,9 @@ class ProjectionBlock(nn.Module): # out shape: (batch_size, 3*IN_DIM + 4, C3D)
     def __init__(self, model_arguments):
         super().__init__()
 
-        self.zweiDCNN = zweiDCNNPretrained()
-        self.projection = NonLinearProjection()
-        self.embedding = PositionPlaneEmbedding()
+        self.zweiDCNN = zweiDCNNPretrained(model_arguments={})
+        self.projection = NonLinearProjection(model_arguments={})
+        self.embedding = PositionPlaneEmbedding(model_arguments={})
 
     def forward(self, x):
         return self.embedding(self.projection(self.zweiDCNN(x)))
@@ -201,7 +201,6 @@ class TransformerDecoder(nn.Module):
     def forward(self, x):
         return self.linear1(x[0]) # take the first aka cls token to predict the class
 
-
 class TransformerEncoder(nn.Module):
     def __init__(self, model_arguments):
         super().__init__()
@@ -230,8 +229,6 @@ class TransformerEncoderBlock(nn.Module): # add residual summation
         
         return self.linear2(self.gelu1(self.linear1(normalized_mha_x)))
 
-
-    
 class LitADNIM3T(L.LightningModule):
     """A lit Model."""
 
@@ -316,12 +313,15 @@ if __name__ == "__main__":
     # resnet.to(device)
     # summary.summary(resnet, (C3D, 128, 128), batch_size=32, device=device)
     
-    splitModule = SplitModule(model_arguments={})
-    splitModule.to(device)
+    # splitModule = SplitModule(model_arguments={})
+    # splitModule.to(device)
     
-    C3D = 2
+    # C3D = 2
     
-    print(splitModule.split_coronal(torch.randn(32, C3D, 128, 128, 128)).shape)
+    # print(splitModule.split_coronal(torch.randn(32, C3D, 128, 128, 128)).shape)
     
     
-    summary.summary(splitModule, (C3D, 128, 128, 128), batch_size=32, device=device)
+    # summary.summary(splitModule, (C3D, 128, 128, 128), batch_size=32, device=device)
+    
+    ADNIM3T = ADNIM3T(model_arguments={})
+    summary.summary(ADNIM3T, (1, IN_DIM, IN_DIM, IN_DIM), batch_size=32, device=device)
