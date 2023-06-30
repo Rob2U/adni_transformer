@@ -7,7 +7,8 @@ from torchmetrics import AUROC, Accuracy, F1Score
 from monai.networks.nets import resnet18
 #from defaults import MODEL_DEFAULTS
 #import models.summary as summary
-import summary
+from . import summary
+
 class ADNIResNet(nn.Module):
     def __init__(self, model_args):
         

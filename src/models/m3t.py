@@ -5,11 +5,11 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from monai.networks.nets import ViT
-from defaults import MODEL_DEFAULTS
+from src.defaults import MODEL_DEFAULTS
 from torchmetrics import AUROC, Accuracy, F1Score
 from torchvision.models import resnet18, ResNet18_Weights
 
-
+from . import summary
 
 # temporary parameter collection
 IN_DIM = 128
@@ -25,9 +25,10 @@ TOKEN_D = 256
 
 # Transformer Parameters
 TRANSFORMER_LAYERS = 8
-TRANSFORMER_HIDDEN_SIZE = 768
-TRANSFORMER_MLP_SIZE = 768
+TRANSFORMER_HIDDEN_SIZE = 768 # i am quite confused about what exactly what is meant with: The hidden size and MLP size are 768...)
+TRANSFORMER_MLP_SIZE = 768 # probably the classification mlp in the decoder but a dedicated parameter does not make sense to me
 TRANSFORMER_ATTENTION_HEADS = 8
+TRANSFORMER_OUT_CLASSES = 2
 
 
 class ADNIM3T(nn.Module):
@@ -168,44 +169,51 @@ class PositionPlaneEmbedding(nn.Module):
 # -------
 
 class Transformer(nn.Module): # TODO
-    def __init__(self, model_aruments):
-        super().__init__()
-
-        self.decoder = TransformerDecoder()
-        self.encoder = TransformerEncoder()
-
-    def forward(self, x):
-        return self.encoder(self.decoder(x))
-
-class TransformerDecoder(nn.Module): # TODO
-    def __init__(self, model_aruments):
-        super().__init__()
-
-    def forward(self, x):
-        return x
-
-
-class TransformerEncoder(nn.Module): #TODO
-    def __init__(self, model_aruments):
-        super().__init__()
-        
-
-    def forward(self, x):
-        return x
-    
-class TransformerEncoderBlock(nn.Module):
     def __init__(self, model_arguments):
         super().__init__()
-        self.layer_norm1 = nn.LayerNorm()
+
+        self.decoder = TransformerDecoder(model_arguments=model_arguments)
+        self.encoder = TransformerEncoder(model_arguments=model_arguments)
+
+    def forward(self, x):
+        return self.decoder(self.encoder(x))
+
+class TransformerDecoder(nn.Module): # TODO
+    def __init__(self, model_arguments):
+        super().__init__()
+        self.linear1 = nn.Linear(in_features=TOKEN_D, out_features=TRANSFORMER_OUT_CLASSES)
+
+    def forward(self, x):
+        return self.linear1(x[0]) # take the first aka cls token to predict the class
+
+
+class TransformerEncoder(nn.Module):
+    def __init__(self, model_arguments):
+        super().__init__()
+        self.model = [TransformerEncoderBlock(model_arguments) for _ in range(TRANSFORMER_LAYERS)]
+
+    def forward(self, x):
+        for block in self.model:
+            x = block(x)
+        return x
+    
+class TransformerEncoderBlock(nn.Module): # add residual summation
+    def __init__(self, model_arguments):
+        super().__init__()
+        sequence_length = 3 * IN_DIM + 4 # sequence length is 3 * S + 4
+        self.layer_norm1 = nn.LayerNorm(normalized_shape=(sequence_length, TOKEN_D)) 
         self.multi_head_attention = nn.MultiheadAttention(embed_dim=TOKEN_D, num_heads=TRANSFORMER_ATTENTION_HEADS)
-        self.layer_norm2 = nn.LayerNorm()
-        self.linear = nn.Linear(in_features=TRANSFORMER_MLP_SIZE, out_features=TRANSFORMER_HIDDEN_SIZE) # 
+        self.layer_norm2 = nn.LayerNorm(normalized_shape=(sequence_length, TOKEN_D))
+        self.linear1 = nn.Linear(in_features=TOKEN_D, out_features=TRANSFORMER_HIDDEN_SIZE)
+        self.gelu1 = nn.GELU()
+        self.linear2 = nn.Linear(in_features=TRANSFORMER_HIDDEN_SIZE, out_features=TOKEN_D)
 
     def forward(self, x):
         normalized_x = self.layer_norm1(x)
-        mha_x = self.multi_head_attention(normalized_x, normalized_x, normalized_x)
+        mha_x, _ = self.multi_head_attention(normalized_x, normalized_x, normalized_x, need_weights=False)
         normalized_mha_x = self.layer_norm2(mha_x)
-        return self.linear(x)
+        
+        return self.linear2(self.gelu1(self.linear1(normalized_mha_x)))
 
 
     
@@ -285,13 +293,7 @@ class LitADNIM3T(L.LightningModule):
 
     
 if __name__ == "__main__":
-    with torch.no_grad():
-        model = ADNIViT()
-        model = model.cuda()
-        model = nn.DataParallel(model, device_ids=None)
-        print(model)
-
-        input_var = Variable(torch.randn(8, 1, 128, 128, 128))
-        output = model(input_var)
-        print(output)
-        print(output.shape)
+    device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    transformer = Transformer(model_arguments={})
+    transformer.to(device)
+    summary.summary(transformer, (3*IN_DIM + 4, TOKEN_D), batch_size=32, device=device)
