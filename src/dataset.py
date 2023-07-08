@@ -106,6 +106,67 @@ class ADNIDataset(Dataset):
         self.perform_split()
         
         
+class PretrainADNIDataset(Dataset):
+    def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
+        super().__init__()
+        
+        self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction        
+        self.transform = transform
+        self.split = split
+
+        self.classes = ['AD', 'CN', 'MCI', 'EMCI', 'LMCI', 'SMC']
+        self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
+        self.preprocess_metadata() # then preprocess it
+        
+        
+    def __len__(self):
+        return len(self.data['DX'])
+    
+    def __getitem__(self, index):
+        image_uid = self.data.iloc[index][['DX', 'IMAGEUID']]
+        
+        img = torch.tensor(self.load_image(image_uid))
+        img = (img - img.min()) / (img.max() - img.min()) # normalize
+        img = img[None, ...]  # add channel dim
+        
+        if self.transform:
+            return self.transform(img)
+        else:
+            return img
+
+    def load_image(self, image_uid):
+        file = 'file_' + image_uid + '.npy.npz'
+        data_from_file = np.load(os.path.join(self.data_dir, file))
+        return data_from_file['arr_0']
+    
+    def perform_split(self):
+        np.random.seed(42)
+        patients = self.data['PTID'].unique()
+        patients = np.random.permutation(patients)
+        
+        if self.split == 'train':
+            patients = patients[:int(patients.shape[0] * self.train_fraction)]
+        elif self.split == 'val':
+            patients = patients[int(patients.shape[0] * self.train_fraction):int(patients.shape[0] * (self.train_fraction + self.validation_fraction))]
+        elif self.split == 'test':
+            patients = patients[int(patients.shape[0] * (self.train_fraction + self.validation_fraction)):] # leave test_fraction cause unnecessary
+        else:
+            raise ValueError('split must be one of train, val, test')
+            
+        self.data = self.data[self.data.PTID.isin(patients)]
+    
+    def preprocess_metadata(self):
+        npy_files = os.listdir(self.data_dir)
+        img_uid = [file_name.split('.')[0].split('_')[-1] for file_name in npy_files] # all image uids
+        self.data = self.data[self.data.IMAGEUID.isin(img_uid)]
+
+        self.data = self.data[self.data.DX.isin(self.classes)]
+        self.perform_split()
+
 class ADNIDatasetRAM(Dataset):
     def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
         super().__init__()
@@ -208,6 +269,8 @@ class ADNIDataModule(L.LightningDataModule):
             dataset = ADNIDataset
         elif self.dataset == "ADNIRAM":
             dataset = ADNIDatasetRAM
+        elif self.dataset == "PretrainADNIDataset":
+            dataset = PretrainADNIDataset
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
         
@@ -241,7 +304,8 @@ class ADNIDataModule(L.LightningDataModule):
 
 
 if __name__ == "__main__":
-    module = ADNIDataModule(
+    print("STARTING TEST")
+    """ module = ADNIDataModule(
         dataset=DEFAULTS["DATALOADING"]["dataset"],
         batch_size=DEFAULTS["HYPERPARAMETERS"]["batch_size"],
         num_workers=DEFAULTS["DATALOADING"]["num_workers"],
@@ -265,4 +329,37 @@ if __name__ == "__main__":
     num_ad = len(test_df[test_df['DX'] == 'AD'])
     num_cn = len(test_df[test_df['DX'] == 'CN'])
     print(all_data.head())
-    print(f"Number of AD: {num_ad}, Number of CN: {num_cn}")
+    print(f"Number of AD: {num_ad}, Number of CN: {num_cn}") """
+
+    module = ADNIDataModule(
+        dataset="PretrainADNIDataset",
+        batch_size=DEFAULTS["HYPERPARAMETERS"]["batch_size"],
+        num_workers=DEFAULTS["DATALOADING"]["num_workers"],
+        data_dir=DEFAULTS["DATALOADING"]["data_dir"],
+        meta_file_path=DEFAULTS["DATALOADING"]["meta_file_path"],
+        train_fraction=DEFAULTS["HYPERPARAMETERS"]["train_fraction"],
+        validation_fraction=DEFAULTS["HYPERPARAMETERS"]["validation_fraction"],
+        test_fraction=DEFAULTS["HYPERPARAMETERS"]["test_fraction"],
+    )
+    module.setup(stage="fit")
+    train_ds = module.train_ds
+    val_ds = module.val_ds
+    test_ds = module.test_ds
+
+
+    train_df = train_ds.data
+    val_df = val_ds.data
+    test_df = test_ds.data
+
+    all_data = pd.concat([train_df, val_df, test_df], axis=0)
+    sampleNumbers = dict(
+        num_ad = len(test_df[test_df['DX'] == 'AD']),
+        num_cn = len(test_df[test_df['DX'] == 'CN']),
+        num_mci = len(test_df[test_df['DX'] == 'MCI']),
+        num_emci = len(test_df[test_df['DX'] == 'EMCI']),
+        num_lmci = len(test_df[test_df['DX'] == 'LMCI']),
+        num_smc = len(test_df[test_df['DX'] == 'SMC']),
+    )
+    print(all_data.head())
+    for type in sampleNumbers:
+        print(f"{type} contains {sampleNumbers[type]} samples")
