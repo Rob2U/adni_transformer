@@ -3,7 +3,7 @@
 import lightning as L
 import torch
 from torch.utils.data import DataLoader
-from torchvision import transforms
+import torchvision.transforms.v2 as transforms
 from torch.utils.data import Dataset
 import os
 import numpy as np
@@ -39,6 +39,20 @@ def get_test_tfms():
                                            ])
     transforms.set_random_state(42)
     return transforms
+
+def get_pretrain_tfms():
+    pre_tfms = transforms.Compose([
+        # add addtitional data augmentation here
+        SwitchTemporalAndChannelDims(),
+        transforms.UniformTemporalSubsample(DEFAULTS['PRETRAINING']['num_frames']),
+        SwitchTemporalAndChannelDims(),
+    ]) 
+    return pre_tfms
+
+class SwitchTemporalAndChannelDims(object):
+    def __call__(self, img):
+        img = img.permute(1, 0, 2, 3)   # should be the same image when called twice
+        return img
 
 
 class ADNIDataset(Dataset):
@@ -115,10 +129,10 @@ class PretrainADNIDataset(Dataset):
         self.train_fraction = train_fraction
         self.validation_fraction = validation_fraction
         self.test_fraction = test_fraction        
-        self.transform = transform
+        self.transform = get_pretrain_tfms() #transform
         self.split = split
 
-        self.classes = ['AD', 'CN', 'MCI', 'EMCI', 'LMCI', 'SMC']
+        self.classes = ['SMC'] #'CN', 'AD', 'MCI', 'EMCI', 'LMCI', 'SMC'] #remove AD for anomaly detection
         self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         
@@ -127,16 +141,19 @@ class PretrainADNIDataset(Dataset):
         return len(self.data['DX'])
     
     def __getitem__(self, index):
-        image_uid = self.data.iloc[index][['DX', 'IMAGEUID']]
+        lbl, image_uid = self.data.iloc[index][['DX', 'IMAGEUID']]
+        
+        lbl = 0 if lbl == 'CN' else 1
+        lbl = torch.tensor(lbl)
         
         img = torch.tensor(self.load_image(image_uid))
         img = (img - img.min()) / (img.max() - img.min()) # normalize
         img = img[None, ...]  # add channel dim
         
         if self.transform:
-            return self.transform(img)
+            return self.transform(img), lbl
         else:
-            return img
+            return img, lbl
 
     def load_image(self, image_uid):
         file = 'file_' + image_uid + '.npy.npz'
@@ -164,8 +181,9 @@ class PretrainADNIDataset(Dataset):
         img_uid = [file_name.split('.')[0].split('_')[-1] for file_name in npy_files] # all image uids
         self.data = self.data[self.data.IMAGEUID.isin(img_uid)]
 
-        self.data = self.data[self.data.DX.isin(self.classes)]
+        self.data = self.data[self.data.DX.isin(self.classes)] # filter out MCI class
         self.perform_split()
+    
 
 class ADNIDatasetRAM(Dataset):
     def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
@@ -269,7 +287,7 @@ class ADNIDataModule(L.LightningDataModule):
             dataset = ADNIDataset
         elif self.dataset == "ADNIRAM":
             dataset = ADNIDatasetRAM
-        elif self.dataset == "PretrainADNIDataset":
+        elif self.dataset == "PretrainADNI":
             dataset = PretrainADNIDataset
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
@@ -332,7 +350,7 @@ if __name__ == "__main__":
     print(f"Number of AD: {num_ad}, Number of CN: {num_cn}") """
 
     module = ADNIDataModule(
-        dataset="PretrainADNIDataset",
+        dataset="PretrainADNI",
         batch_size=DEFAULTS["HYPERPARAMETERS"]["batch_size"],
         num_workers=DEFAULTS["DATALOADING"]["num_workers"],
         data_dir=DEFAULTS["DATALOADING"]["data_dir"],
@@ -355,11 +373,15 @@ if __name__ == "__main__":
     sampleNumbers = dict(
         num_ad = len(test_df[test_df['DX'] == 'AD']),
         num_cn = len(test_df[test_df['DX'] == 'CN']),
-        num_mci = len(test_df[test_df['DX'] == 'MCI']),
-        num_emci = len(test_df[test_df['DX'] == 'EMCI']),
-        num_lmci = len(test_df[test_df['DX'] == 'LMCI']),
-        num_smc = len(test_df[test_df['DX'] == 'SMC']),
+        # num_mci = len(test_df[test_df['DX'] == 'MCI']),
+        # num_emci = len(test_df[test_df['DX'] == 'EMCI']),
+        # num_lmci = len(test_df[test_df['DX'] == 'LMCI']),
+        # num_smc = len(test_df[test_df['DX'] == 'SMC']),
     )
     print(all_data.head())
     for type in sampleNumbers:
         print(f"{type} contains {sampleNumbers[type]} samples")
+
+    train_loader = module.train_dataloader()
+    example_batch = next(iter(train_loader))
+    print(example_batch[0].shape)

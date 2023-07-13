@@ -11,6 +11,7 @@ from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
 from models.vit import LitADNIViT
+from pretraining import LitMaskedAutoencoder
 from mlparser import ADNIParser
 from defaults import DEFAULTS, MODEL_DEFAULTS
 
@@ -22,6 +23,8 @@ def get_model_class(model_name):
         return LitADNIShuffleNetV2
     elif model_name == "ViT":
         return LitADNIViT
+    elif model_name == "MaskedAutoencoder":
+        return LitMaskedAutoencoder
 
 def load_pretrained_model(pretrained_path, model_class):
     """Loads a pretrained model from a checkpoint file."""
