@@ -132,7 +132,7 @@ class PretrainADNIDataset(Dataset):
         self.transform = get_pretrain_tfms() #transform
         self.split = split
 
-        self.classes = ['SMC'] #'CN', 'AD', 'MCI', 'EMCI', 'LMCI', 'SMC'] #remove AD for anomaly detection
+        self.classes = ['CN', 'MCI', 'EMCI', 'LMCI', 'SMC'] #remove AD for anomaly detection
         self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         
@@ -141,19 +141,16 @@ class PretrainADNIDataset(Dataset):
         return len(self.data['DX'])
     
     def __getitem__(self, index):
-        lbl, image_uid = self.data.iloc[index][['DX', 'IMAGEUID']]
-        
-        lbl = 0 if lbl == 'CN' else 1
-        lbl = torch.tensor(lbl)
+        image_uid = self.data.iloc[index][['IMAGEUID']]
         
         img = torch.tensor(self.load_image(image_uid))
         img = (img - img.min()) / (img.max() - img.min()) # normalize
         img = img[None, ...]  # add channel dim
         
         if self.transform:
-            return self.transform(img), lbl
+            return self.transform(img)
         else:
-            return img, lbl
+            return img
 
     def load_image(self, image_uid):
         file = 'file_' + image_uid + '.npy.npz'
@@ -181,7 +178,7 @@ class PretrainADNIDataset(Dataset):
         img_uid = [file_name.split('.')[0].split('_')[-1] for file_name in npy_files] # all image uids
         self.data = self.data[self.data.IMAGEUID.isin(img_uid)]
 
-        self.data = self.data[self.data.DX.isin(self.classes)] # filter out MCI class
+        self.data = self.data[self.data.DX.isin(self.classes)]
         self.perform_split()
     
 
