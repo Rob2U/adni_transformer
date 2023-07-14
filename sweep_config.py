@@ -1,6 +1,6 @@
 SWEEP_CONFIG = dict(
-    name="shufflenetv2_vit_sweep",
-    project="model-comparison",
+    name="shufflenetv2_m3t",
+    project="m3t-adni",
     program="src/train.py",
     method="grid",
     metric=dict(
@@ -9,7 +9,7 @@ SWEEP_CONFIG = dict(
     ),
     parameters=dict(
         model_name=dict(
-            values=["ViT", "ShuffleNetV2"],
+            values=["M3T"],
         ),
         train_fraction=dict(
             values=[0.5, 0.7],
@@ -18,10 +18,10 @@ SWEEP_CONFIG = dict(
             values=[1e-1, 1e-2, 1e-3],
         ),
         batch_size=dict(
-            values=[64, 128],
+            values=[16, 32],
         ),
         max_epochs=dict(
-            values=[10],
+            values=[5],
         ),
         benchmark=dict(
             values=[True],

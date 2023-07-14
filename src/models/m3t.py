@@ -15,11 +15,11 @@ from . import summary
 IN_DIM = 128
 # dreiDCNN
 IN_CHANNELS = 1
-C3D = 32 # channel number of the 3D CNN
+C3D = 4 # channel number of the 3D CNN
 FILTER_SHAPE_3D_CNN = (5,5,5)
 
 # SplitModule
-C2D_split = 128 # IDK
+C2D_split = C3D # IDK
 LINEAR_HIDDEN_NEURONS_split = 512
 TOKEN_D = 256
 
@@ -123,19 +123,22 @@ class zweiDCNNPretrained(nn.Module):
         self.global_avg_pool = nn.AvgPool3d(kernel_size=(512,4,4)) # has to be 32x4x4 because of the output shape of resnet18
 
     def forward(self, x):
-        # broadcast to 3 channels
-        x = torch.zeros((x.shape[0], 3, x.shape[1], x.shape[2], x.shape[3])).to(x.device) + x.reshape((x.shape[0], 1, x.shape[1], x.shape[2], x.shape[3])) # input: CxLxL -> resnet18: Cx3xLxL
-        x = x.reshape((x.shape[0], x.shape[2], 3, x.shape[3], x.shape[4]))
+        # broadcast to 3 channels 
+        # input: batch_size x 3 * IN_DIM, C3D, IN_DIM, IN_DIM 
+        # output: batch_size x 3 * IN_DIM, C3D, 3, IN_DIM, IN_DIM
+        x = torch.zeros((x.shape[0], x.shape[1], x.shape[2], 3, x.shape[3], x.shape[4])).to(x.device) + x.reshape((x.shape[0], x.shape[1], x.shape[2], 1, x.shape[3], x.shape[4])) # input: CxLxL -> resnet18: Cx3xLxL
+        #x = x.reshape((x.shape[0], x.shape[2], 3, x.shape[3], x.shape[4]))
 
         # apply resnet18 along the 1st and 2nd dimension
         # no clue if this can be done more efficiently, braucht halt sau viel speicher und dauert sau lange
-        out = torch.zeros((x.shape[0], x.shape[1], C3D, 1, 1)).to(x.device)
-        for j in range(x.shape[1]):
-            out[:,j,:,:,:] = self.global_avg_pool(self.resnet18(x[:,j,:,:,:]))
-        out = out.reshape((x.shape[0], x.shape[1], C3D))
+        out = torch.zeros((x.shape[0], x.shape[1], x.shape[2], 1, 1, 1)).to(x.device)
+        for i in range(x.shape[0]): # batchsize
+            for j in range(x.shape[1]): # sequencelength
+                 # use C3D as batchsize for resnet18
+                out[i,j,:,:,:,:] = self.global_avg_pool(self.resnet18(x[i,j,:,:,:,:]))
+        out = out.reshape((x.shape[0], x.shape[1], x.shape[2])) # output: batchsize x sequencelength x C3D
         
         return out # output: batchsize x sequencelength x C3D
-
 
 class NonLinearProjection(nn.Module):
     def __init__(self, model_arguments):
@@ -147,8 +150,7 @@ class NonLinearProjection(nn.Module):
         self.relu2 = nn.ReLU()
 
     def forward(self, x):
-        return self.relu(self.linear2(self.relu1(self.linear1(x))))
-
+        return self.relu2(self.linear2(self.relu1(self.linear1(x))))
 
 class PositionPlaneEmbedding(nn.Module):
     def __init__(self, model_arguments):
@@ -167,17 +169,17 @@ class PositionPlaneEmbedding(nn.Module):
         self.axial_plane_embedding = nn.Parameter(torch.zeros(TOKEN_D))
 
 
-    def forward(self, x):
+    def forward(self, x): # here occurs the error: RuntimeError: Tensors must have same number of dimensions: got 1 and 3
         # construct correct sequence
         # x needs to have shape self.entry_amount_per_plane*3,d
         Z_0 = torch.cat([
-            torch.tensor([self.class_tkn]), 
-            x[0:self.entry_amount_per_plane] + self.coronal_plane_embedding, # broadcast plane embedding
-            torch.tensor([self.sep_tkn]),
-            x[self.entry_amount_per_plane:self.entry_amount_per_plane*2] + self.saggital_plane_embedding,
-            torch.tensor([self.sep_tkn]),
-            x[self.entry_amount_per_plane*2:self.entry_amount_per_plane*3] + self.axial_plane_embedding,
-            torch.tensor([self.sep_tkn])
+            self.class_tkn.data, 
+            x[0:self.entry_amount_per_plane] + self.coronal_plane_embedding.data, # broadcast plane embedding
+            self.sep_tkn.data,
+            x[self.entry_amount_per_plane:self.entry_amount_per_plane*2] + self.saggital_plane_embedding.data,
+            self.sep_tkn.data,
+            x[self.entry_amount_per_plane*2:self.entry_amount_per_plane*3] + self.axial_plane_embedding.data,
+            self.sep_tkn.data,
         ])
         return Z_0 + self.positional_embedding
 
