@@ -11,7 +11,7 @@ from torchmetrics import AUROC, Accuracy, F1Score
 from collections import OrderedDict
 from torch.nn import init
 import math
-from defaults import MODEL_DEFAULTS
+from src.defaults import MODEL_DEFAULTS
 
 
 def conv_bn(inp, oup, stride):
