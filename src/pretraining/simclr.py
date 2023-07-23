@@ -18,45 +18,25 @@ class SimCLR(nn.Module):
         z = self.projection_head(x)
         return z
 
+def getSIMCLRLoss():
+    return NTXentLoss()
 
-resnet = torchvision.models.resnet18()
-backbone = nn.Sequential(*list(resnet.children())[:-1])
-model = SimCLR(backbone)
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model.to(device)
-
-transform = SimCLRTransform(input_size=32, gaussian_blur=0.0)
-dataset = torchvision.datasets.CIFAR10(
-    "datasets/cifar10", download=True, transform=transform
-)
-# or create a dataset from a folder containing images or videos:
-# dataset = LightlyDataset("path/to/folder", transform=transform)
-
-dataloader = torch.utils.data.DataLoader(
-    dataset,
-    batch_size=256,
-    shuffle=True,
-    drop_last=True,
-    num_workers=8,
-)
-
-criterion = NTXentLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=0.06)
-
-print("Starting Training")
-for epoch in range(10):
-    total_loss = 0
-    for batch in dataloader:
-        x0, x1 = batch[0]
-        x0 = x0.to(device)
-        x1 = x1.to(device)
-        z0 = model(x0)
-        z1 = model(x1)
-        loss = criterion(z0, z1)
-        total_loss += loss.detach()
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-    avg_loss = total_loss / len(dataloader)
-    print(f"epoch: {epoch:>02}, loss: {avg_loss:.5f}")
+def performSimCLRIter(simclr_model, optimizer, x_0, x_1, device):
+    if not performSimCLRIter.criterion:
+        performSimCLRIter.criterion = getSIMCLRLoss()
+    performSimCLRIter.criterion.to(device)
+    criterion = performSimCLRIter.criterion
+    
+    x_0 = x_0.to(device)
+    x_1 = x_1.to(device)
+    
+    z_0 = simclr_model(x_0)
+    z_1 = simclr_model(x_1)
+    
+    loss = criterion(z_0, z_1)
+    
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    
+    return loss.item()   
