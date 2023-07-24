@@ -1,1 +1,2 @@
-from . simclr import SimCLR
+from .simclr import SimCLR
+from .byol import BYOL

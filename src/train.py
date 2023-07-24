@@ -15,11 +15,14 @@ from models.shufflenetV2 import LitADNIShuffleNetV2
 from models.vit import LitADNIViT
 from models.m3t import LitADNIM3T
 
+from pretraining import SimCLRFrame, BYOLFrame
+
 from mlparser import ADNIParser
 from defaults import DEFAULTS, MODEL_DEFAULTS
 
 def get_model_class(model_name):
     """Returns the model class for a given model name."""
+    
     if model_name == "ResNet18":
         return LitADNIResNet
     elif model_name == "ShuffleNetV2":
@@ -28,6 +31,12 @@ def get_model_class(model_name):
         return LitADNIViT
     elif model_name == "M3T":
         return LitADNIM3T
+    elif model_name == "BYOL": 
+        return BYOLFrame
+    elif model_name == "SimCLR":
+        return SimCLRFrame
+
+        
 
 def load_pretrained_model(pretrained_path, model_class):
     """Loads a pretrained model from a checkpoint file."""
@@ -42,6 +51,10 @@ def get_model_arguments(model_name, parsed_arguments):
         model_args["accelerator"] = parsed_arguments["accelerator"]
     # elif model_name ==
     model_args["learning_rate"] = parsed_arguments["learning_rate"]
+    
+    if model_name == "SimCLRFrame" or model_name == "BYOLFrame":
+        model_args["backbone"] = get_model_class(parsed_arguments["backbone"])
+    
     return model_args
 
 def get_model(model_class, model_arguments):
@@ -67,7 +80,7 @@ def get_callbacks(arguments):
     """Returns a list of callbacks for the model."""
     
     checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
-            monitor="val_loss",
+            monitor="train_loss",
             dirpath=os.path.join(arguments["checkpoint_path"]),
             filename=strftime("%Y-%m-%d %H:%M:%S", gmtime()) + "-{epoch:02d}-{val_loss:.2f}",
             save_top_k=5,
@@ -98,6 +111,7 @@ def main(args):
     if dict_args["compile"]:
         model = torch.compile(model)
     callbacks = get_callbacks(dict_args)
+    
     trainer = L.pytorch.Trainer(
         accelerator=dict_args["accelerator"],
         devices=dict_args["devices"],
@@ -109,6 +123,7 @@ def main(args):
         logger=wandb_logger,
         callbacks=callbacks,
     )
+    
     data = ADNIDataModule(
         dataset=dict_args["dataset"],
         batch_size=dict_args["batch_size"],
@@ -118,7 +133,7 @@ def main(args):
         train_fraction=dict_args["train_fraction"],
         validation_fraction=dict_args["validation_fraction"],
         test_fraction=dict_args["test_fraction"],
-    )
+    ) # TODO modify to use special pretraining dataset
 
     
     if dict_args["pretrained_path"] is not None:

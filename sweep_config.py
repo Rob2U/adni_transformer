@@ -1,27 +1,27 @@
 SWEEP_CONFIG = dict(
-    name="shufflenetv2_m3t",
-    project="m3t-adni",
+    name="test_sweep",
+    project="pretrainingOnADNI",
     program="src/train.py",
     method="grid",
     metric=dict(
-        name="val_loss",
+        name="train_loss",
         goal="minimize",
     ),
     parameters=dict(
         model_name=dict(
-            values=["M3T"],
+            values=["SimCLR", "BYOL"],
         ),
-        train_fraction=dict(
-            values=[0.5, 0.7],
+        backbone=dict(
+            values=["ResNet18", "ShuffleNetV2", "ViT"],
         ),
         learning_rate=dict(
-            values=[1e-1, 1e-2, 1e-3],
+            values=[1e-2, 1e-3], 
         ),
         batch_size=dict(
-            values=[16, 32],
+            values=[16, 32], # may have to increase this value
         ),
         max_epochs=dict(
-            values=[5],
+            values=[10],
         ),
         benchmark=dict(
             values=[True],

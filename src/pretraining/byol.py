@@ -7,8 +7,13 @@ from torch import nn
 from lightly.loss import NegativeCosineSimilarity
 from lightly.models.modules import BYOLPredictionHead, BYOLProjectionHead
 from lightly.models.utils import deactivate_requires_grad, update_momentum
-from lightly.transforms.simclr_transform import SimCLRTransform
 from lightly.utils.scheduler import cosine_schedule
+
+from torch import optim
+import lightning as L
+
+
+from . import transforms
 
 
 class BYOL(nn.Module):
@@ -37,34 +42,57 @@ class BYOL(nn.Module):
         z = z.detach()
         return z
 
-# resnet = torchvision.models.resnet18()
-# backbone = nn.Sequential(*list(resnet.children())[:-1])
-# model = BYOL(backbone)
 
 def getBYOLLoss():
     return NegativeCosineSimilarity()
 
-# TODO: add momentum_val = cosine_schedule(epoch, epochs, 0.996, 1)
-def performBYOLIter(byol_model, optimizer, x_0, x_1, momentum_val, device):
-    if not performBYOLIter.criterion:
-        performBYOLIter.criterion = getBYOLLoss()
-    performBYOLIter.criterion.to(device)
-    criterion = performBYOLIter.criterion
-    
-    x_0 = x_0.to(device)
-    x_1 = x_1.to(device)
-    
-    update_momentum(byol_model.backbone, byol_model.backbone_momentum, m=momentum_val)
-    update_momentum(byol_model.projection_head, byol_model.projection_head_momentum, m=momentum_val) 
-    
-    p_0 = byol_model(x_0)
-    z_0 = byol_model.forward_momentum(x_0)
-    p_1 = byol_model(x_1)
-    z_1 = byol_model.forward_momentum(x_1)
-    
-    loss = 0.5 * (criterion(p_0, z_1) + criterion(p_1, z_0))
-    loss.backward()
-    optimizer.step()
-    optimizer.zero_grad()
-    
-    return loss.item()
+
+class BYOLFrame(L.LightningModule):
+    def __init__(self, model_arguments):
+        super().__init__()
+        self.model = BYOL(model_arguments)
+        self.learning_rate = model_arguments["learning_rate"]
+        self.save_hyperparameters()
+        self.iteration_preds = torch.Tensor([], device="cpu")
+        self.iteration_labels = torch.Tensor([], device="cpu")
+        self.criterion = getBYOLLoss().to(model_arguments["ACCELERATOR"])
+        self.transforms = transforms.get_train_tfms()
+        # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
+
+    @staticmethod  # register new arguments here
+    def add_model_specific_args(parent_parser):
+        """Adds model-specific arguments to the parser."""
+        parser = parent_parser.add_argument_group("LitBYOL")
+        # parser.add_argument("--width_mult", type=float, default=MODEL_DEFAULTS["SimCLR"]["width_mult"], help="provides width multiplier for the model")
+        return parent_parser
+
+    def configure_optimizers(self):
+        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
+        lr_scheduler = optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=[100, 150], gamma=0.1
+        )
+        return [optimizer], [lr_scheduler]
+
+    def _calculate_loss(self, batch, mode="train"):
+        # x is a batch of images
+        momentum_val = cosine_schedule(self.current_epoch, self.hparams.max_epochs, 0.996, 1)
+        
+        x_0 = self.transforms(batch)
+        x_1 = self.transforms(batch)        
+        update_momentum(self.model.backbone, self.model.backbone_momentum, m=momentum_val)
+        update_momentum(self.model.projection_head, self.model.projection_head_momentum, m=momentum_val) 
+        
+        p_0 = self.model(x_0)
+        z_0 = self.model.forward_momentum(x_0)
+        p_1 = self.model(x_1)
+        z_1 = self.model.forward_momentum(x_1)
+        
+        loss = 0.5 * (self.criterion(p_0, z_1) + self.criterion(p_1, z_0))
+        
+        self.log(f"{mode}_loss", loss.item(), prog_bar=True)
+
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self._calculate_loss(batch, mode="train")
+

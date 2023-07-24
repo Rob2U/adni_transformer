@@ -13,7 +13,7 @@ DEFAULTS = dict(
         test_fraction=0.2,
     ),
 
-    DATALOADING = dict(
+    DATALOADING = dict( # add these params to custom dataset
         dataset="ADNI",
         data_dir="/dhc/groups/adni_transformer/adni_128_int/",
         meta_file_path="/dhc/groups/adni_transformer/adni_metadata/df_procAlex_MMSE.csv",
@@ -51,6 +51,7 @@ MODEL_DEFAULTS = dict(
 
     ResNet18=dict(),
     ViT=dict(),
-
+    SimCLR=dict(),
+    BYOL=dict(),
 )
 
