@@ -178,6 +178,24 @@ class ADNIDatasetRAM(Dataset):
         self.data = self.data[self.data.DX.isin(self.classes)] # filter out MCI class
         self.perform_split()
         
+
+class ADNIPretrainingDataset(ADNIDataset):
+    def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform, split='train'):
+        super().__init__(data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split=split)
+        self.classes = ['CN', 'AD', 'MCI']
+        
+        self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
+        self.preprocess_metadata() # then preprocess it
+        
+    def __getitem__(self, index):
+        image_uid = self.data.iloc[index][['IMAGEUID']]
+        
+        img = torch.tensor(self.load_image(image_uid))
+        img = (img - img.min()) / (img.max() - img.min()) # normalize
+        img = img[None, ...]  # add channel dim
+        
+        return img # here the transforms are applied in the training loop
+    
     
 class ADNIDataModule(L.LightningDataModule):
     """ADNI datamodule"""
@@ -208,6 +226,8 @@ class ADNIDataModule(L.LightningDataModule):
             dataset = ADNIDataset
         elif self.dataset == "ADNIRAM":
             dataset = ADNIDatasetRAM
+        elif dataset == "ADNIPretraining":
+            dataset = ADNIPretrainingDataset
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
         

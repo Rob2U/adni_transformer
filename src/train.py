@@ -8,7 +8,7 @@ from time import gmtime, strftime
 from pytorch_lightning.loggers import WandbLogger
 from benchmarks.benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
 
-from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
+from dataset import ADNIDataModule
 
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
@@ -133,7 +133,7 @@ def main(args):
         train_fraction=dict_args["train_fraction"],
         validation_fraction=dict_args["validation_fraction"],
         test_fraction=dict_args["test_fraction"],
-    ) # TODO modify to use special pretraining dataset
+    )
 
     
     if dict_args["pretrained_path"] is not None:

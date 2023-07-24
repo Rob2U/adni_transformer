@@ -4,7 +4,7 @@
 DEFAULTS = dict(
 
     HYPERPARAMETERS = dict(
-        model_name="ShuffleNetV2",
+        model_name="ShuffleNetV2", # this will be overwritten by the parser / sweep config
         optimizer="Adam",
         learning_rate=5e-2,
         batch_size=4,
@@ -13,8 +13,8 @@ DEFAULTS = dict(
         test_fraction=0.2,
     ),
 
-    DATALOADING = dict( # add these params to custom dataset
-        dataset="ADNI",
+    DATALOADING = dict(
+        dataset="ADNIPretraining",
         data_dir="/dhc/groups/adni_transformer/adni_128_int/",
         meta_file_path="/dhc/groups/adni_transformer/adni_metadata/df_procAlex_MMSE.csv",
         num_workers=4,
