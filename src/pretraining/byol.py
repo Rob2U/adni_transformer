@@ -1,7 +1,6 @@
 import copy
 
 import torch
-import torchvision
 from torch import nn
 
 from lightly.loss import NegativeCosineSimilarity
