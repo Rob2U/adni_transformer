@@ -4,13 +4,17 @@
 DEFAULTS = dict(
 
     HYPERPARAMETERS = dict(
-        model_name="ShuffleNetV2", # this will be overwritten by the parser / sweep config
+        model_name="SimCLR",
+        backbone="ShuffleNetV2", # this will be overwritten by the parser / sweep config
         optimizer="Adam",
-        learning_rate=5e-2,
-        batch_size=4,
-        train_fraction=0.7,
-        validation_fraction=0.1,
-        test_fraction=0.2,
+        learning_rate=1e-3,
+        batch_size=16,
+        train_fraction=1.0,
+        validation_fraction=0.0,
+        test_fraction=0.0,
+        backbone_out_dim=1024,
+        hidden_dim_proj_head=1024,
+        output_dim_proj_head=256,
     ),
 
     DATALOADING = dict(
@@ -29,7 +33,7 @@ DEFAULTS = dict(
     ),
 
     WANDB = dict(
-        wandb_project="ADNI_parsing",
+        wandb_project="pretrainingOnADNI",
         log_model=True,
         sweep=False,
         benchmark=False,

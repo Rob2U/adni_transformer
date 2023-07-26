@@ -1,5 +1,5 @@
 #!/bin/bash -eux
-#SBATCH --job-name=shufflenetv2_vit_sweep-2 # -J
+#SBATCH --job-name=test_pretraining_adni_sweep-1 # -J
 #SBATCH --partition=gpupro # -p
 #SBATCH --cpus-per-task=8 # -c
 #SBATCH --mem=64G
@@ -11,5 +11,5 @@
 sweep_id=$(<sweep_id.txt)
 
 eval "$(conda shell.bash hook)"
-conda activate mml_env
-wandb agent --count 1 "allsparks/model-comparison/$sweep_id"
+conda activate adni
+wandb agent --count 1 "allsparks/pretrainingOnADNI/$sweep_id"

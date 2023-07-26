@@ -1,12 +1,13 @@
 """ Train a model. """
 
+from datetime import datetime
 from argparse import ArgumentParser
 import os
 import lightning as L
 import torch
 from time import gmtime, strftime
 from pytorch_lightning.loggers import WandbLogger
-from benchmarks.benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
+from benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
 
 from dataset import ADNIDataModule
 
@@ -15,7 +16,7 @@ from models.shufflenetV2 import LitADNIShuffleNetV2
 from models.vit import LitADNIViT
 from models.m3t import LitADNIM3T
 
-from pretraining import SimCLRFrame, BYOLFrame
+from pretraining import SimCLRFrame, BYOLFrame, ResNetBackbone, ViTBackbone, ShuffleNetBackbone
 
 from mlparser import ADNIParser
 from defaults import DEFAULTS, MODEL_DEFAULTS
@@ -35,7 +36,30 @@ def get_model_class(model_name):
         return BYOLFrame
     elif model_name == "SimCLR":
         return SimCLRFrame
+    else:
+        raise ValueError(f"Model {model_name} not implemented.")
+    
+def get_backbone_class(model_name):
+    """ Returns the backbone class for a given model name."""
+    
+    if model_name=="ResNet":
+        return ResNetBackbone
+    elif model_name=="ShuffleNetV2":
+        return ShuffleNetBackbone
+    elif model_name=="ViT":
+        return ViTBackbone
+    else:
+        raise ValueError(f"Backbone for model {model_name} not implemented.")
 
+def get_backbone_out_dim(model_name):
+    if model_name == "ResNet":
+        return 512
+    elif model_name == "ShuffleNetV2":
+        return 1024
+    elif model_name == "ViT":
+        return 768
+    else:
+        raise ValueError(f"Backbone for model {model_name} not implemented.")
         
 
 def load_pretrained_model(pretrained_path, model_class):
@@ -47,13 +71,18 @@ def load_pretrained_model(pretrained_path, model_class):
 
 def get_model_arguments(model_name, parsed_arguments):
     model_args = {key: parsed_arguments[key] for key in parsed_arguments & MODEL_DEFAULTS[model_name].keys()}
-    if model_name == "ResNet18":
-        model_args["accelerator"] = parsed_arguments["accelerator"]
+    model_args["accelerator"] = parsed_arguments["accelerator"]
     # elif model_name ==
     model_args["learning_rate"] = parsed_arguments["learning_rate"]
     
-    if model_name == "SimCLRFrame" or model_name == "BYOLFrame":
-        model_args["backbone"] = get_model_class(parsed_arguments["backbone"])
+    if model_name == "SimCLR" or model_name == "BYOL":
+        if not parsed_arguments["backbone"]:
+            raise ValueError("Backbone not specified for pretraining method.")
+
+        model_args["backbone"] = get_backbone_class(parsed_arguments["backbone"])
+        model_args["backbone_out_dim"] = parsed_arguments["backbone_out_dim"]
+        model_args["hidden_dim_proj_head"] = parsed_arguments["hidden_dim_proj_head"]
+        model_args["output_dim_proj_head"] = parsed_arguments["output_dim_proj_head"]
     
     return model_args
 
@@ -108,6 +137,10 @@ def main(args):
     model_class = get_model_class(model_name)
     model_specific_arguments = get_model_arguments(model_name, parsed_arguments=dict_args)
     model = get_model(model_class=model_class, model_arguments=model_specific_arguments) # get the specified model
+    
+    # add the backbone output dimension to the arguments
+    dict_args["backbone_out_dim"] = get_backbone_out_dim(dict_args["backbone"])
+    
     if dict_args["compile"]:
         model = torch.compile(model)
     callbacks = get_callbacks(dict_args)
@@ -146,8 +179,8 @@ def main(args):
             trainer.checkpoint_callback.best_model_path
         )
     
-    results = trainer.test(model, data)
-    print(results)
+    # results = trainer.test(model, data)
+    # print(results)
 
 if __name__ == "__main__":
     # Set seed for reproducibility
@@ -176,7 +209,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint_path", 
         type=str, 
-        default=os.path.join(DEFAULTS["CHECKPOINTING"]["checkpoint_path_without_model_name"], temp_args.wandb_project+"/", temp_args.model_name)
+        default=os.path.join(DEFAULTS["CHECKPOINTING"]["checkpoint_path_without_model_name"], temp_args.wandb_project+"/", temp_args.model_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
     )        
     args = parser.parse_args()
 
