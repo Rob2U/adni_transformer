@@ -1,2 +1,3 @@
-from .simclr import SimCLR
-from .byol import BYOL
+from .simclr import SimCLRFrame
+from .byol import BYOLFrame
+from .models import *

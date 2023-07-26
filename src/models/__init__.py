@@ -1,7 +1,5 @@
-# from . import (
-#     m3t,
-#     resnet,
-#     shufflenetV2,
-#     vit,
-#     summary,
-# )
+from .m3t import *
+from .resnet import *
+from .shufflenetV2 import *
+from .vit import *
+from .summary import *

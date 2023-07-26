@@ -16,12 +16,12 @@ from . import transforms
 
 
 class BYOL(nn.Module):
-    def __init__(self, backbone):
+    def __init__(self, backbone, backbone_out_dim, hidden_dim_proj_head, output_dim_proj_head, **backbone_kwargs):
         super().__init__()
 
-        self.backbone = backbone
-        self.projection_head = BYOLProjectionHead(512, 1024, 256)
-        self.prediction_head = BYOLPredictionHead(256, 1024, 256)
+        self.backbone = backbone(**backbone_kwargs)
+        self.projection_head = BYOLProjectionHead(backbone_out_dim, hidden_dim_proj_head, output_dim_proj_head)
+        self.prediction_head = BYOLPredictionHead(backbone_out_dim, hidden_dim_proj_head, output_dim_proj_head)
 
         self.backbone_momentum = copy.deepcopy(self.backbone)
         self.projection_head_momentum = copy.deepcopy(self.projection_head)
@@ -54,7 +54,7 @@ class BYOLFrame(L.LightningModule):
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
         self.iteration_labels = torch.Tensor([], device="cpu")
-        self.criterion = getBYOLLoss().to(model_arguments["ACCELERATOR"])
+        self.criterion = getBYOLLoss().to(model_arguments["accelerator"])
         self.transforms = transforms.get_train_tfms()
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
 

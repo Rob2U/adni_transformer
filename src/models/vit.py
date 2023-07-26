@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from monai.networks.nets import ViT
-from src.defaults import MODEL_DEFAULTS
+from defaults import MODEL_DEFAULTS
 from torchmetrics import AUROC, Accuracy, F1Score
 
 class ADNIViT(nn.Module):

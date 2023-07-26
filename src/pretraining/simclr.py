@@ -12,10 +12,11 @@ from . import transforms
 
 
 class SimCLR(nn.Module):
-    def __init__(self, backbone):
+    def __init__(self, backbone, backbone_out_dim, hidden_dim_proj_head, output_dim_proj_head, **backbone_kwargs):
         super().__init__()
-        self.backbone = backbone
-        self.projection_head = SimCLRProjectionHead(512, 512, 128)
+        
+        self.backbone = backbone(**backbone_kwargs)
+        self.projection_head = SimCLRProjectionHead(backbone_out_dim, hidden_dim_proj_head, output_dim_proj_head)
 
     def forward(self, x):
         x = self.backbone(x).flatten(start_dim=1)
@@ -31,12 +32,12 @@ def getSIMCLRLoss():
 class SimCLRFrame(L.LightningModule):
     def __init__(self, model_arguments):
         super().__init__()
-        self.model = SimCLR(model_arguments)
+        self.model = SimCLR(**model_arguments)
         self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
         self.iteration_labels = torch.Tensor([], device="cpu")
-        self.criterion = getSIMCLRLoss().to(model_arguments["ACCELERATOR"])
+        self.criterion = getSIMCLRLoss().to(model_arguments["accelerator"])
         self.transforms = transforms.get_train_tfms()
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
 
@@ -62,6 +63,10 @@ class SimCLRFrame(L.LightningModule):
         
         x_0 = x_0.to(self.device)
         x_1 = x_1.to(self.device)
+        
+        # add channel dimension
+        x_0 = torch.reshape(x_0, (-1, 1, 128, 128, 128))
+        x_1 = torch.reshape(x_1, (-1, 1, 128, 128, 128))
         
         z_0 = self.model(x_0)
         z_1 = self.model(x_1)

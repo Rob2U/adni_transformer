@@ -63,7 +63,6 @@ class ADNIDataset(Dataset):
     
     def __getitem__(self, index):
         lbl, image_uid = self.data.iloc[index][['DX', 'IMAGEUID']]
-        
         lbl = 0 if lbl == 'CN' else 1
         lbl = torch.tensor(lbl)
         
@@ -189,10 +188,11 @@ class ADNIPretrainingDataset(ADNIDataset):
         
     def __getitem__(self, index):
         image_uid = self.data.iloc[index][['IMAGEUID']]
+        image_uid = image_uid[0]
         
         img = torch.tensor(self.load_image(image_uid))
         img = (img - img.min()) / (img.max() - img.min()) # normalize
-        img = img[None, ...]  # add channel dim
+        # img = img[None, ...]  # add channel dim 
         
         return img # here the transforms are applied in the training loop
     
@@ -226,7 +226,7 @@ class ADNIDataModule(L.LightningDataModule):
             dataset = ADNIDataset
         elif self.dataset == "ADNIRAM":
             dataset = ADNIDatasetRAM
-        elif dataset == "ADNIPretraining":
+        elif self.dataset == "ADNIPretraining":
             dataset = ADNIPretrainingDataset
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
@@ -261,6 +261,12 @@ class ADNIDataModule(L.LightningDataModule):
 
 
 if __name__ == "__main__":
+    
+    transforms_monai = get_train_tfms()
+    test_data = torch.randn(1, 128, 128, 128)
+    test_data_out = transforms_monai(test_data)
+    print(test_data_out.shape)
+    
     module = ADNIDataModule(
         dataset=DEFAULTS["DATALOADING"]["dataset"],
         batch_size=DEFAULTS["HYPERPARAMETERS"]["batch_size"],
@@ -276,6 +282,7 @@ if __name__ == "__main__":
     val_ds = module.val_ds
     test_ds = module.test_ds
 
+    test = module.train_ds[0]
 
     train_df = train_ds.data
     val_df = val_ds.data
