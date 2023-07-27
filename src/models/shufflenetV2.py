@@ -11,8 +11,8 @@ from torchmetrics import AUROC, Accuracy, F1Score
 from collections import OrderedDict
 from torch.nn import init
 import math
-from src.defaults import MODEL_DEFAULTS
-
+# from src.defaults import MODEL_DEFAULTS
+from defaults import MODEL_DEFAULTS
 
 def conv_bn(inp, oup, stride):
     return nn.Sequential(
@@ -108,23 +108,23 @@ class InvertedResidual(nn.Module):
 
 
 class ADNIShuffleNetV2(nn.Module):
-    def __init__(self, model_arguments, sample_size=128, num_classes=2):
+    def __init__(self, width_mult, sample_size=128, num_classes=2, **model_args):
         super(ADNIShuffleNetV2, self).__init__()
-        width_mult = model_arguments["width_mult"]
+        self.width_mult = width_mult
         assert sample_size % 16 == 0
         
         self.stage_repeats = [4, 8, 4]
         # index 0 is invalid and should never be called.
         # only used for indexing convenience.
-        if width_mult == 0.25:
+        if self.width_mult == 0.25:
             self.stage_out_channels = [-1, 24,  32,  64, 128, 1024]
-        elif width_mult == 0.5:
+        elif self.width_mult == 0.5:
             self.stage_out_channels = [-1, 24,  48,  96, 192, 1024]
-        elif width_mult == 1.0:
+        elif self.width_mult == 1.0:
             self.stage_out_channels = [-1, 24, 116, 232, 464, 1024]
-        elif width_mult == 1.5:
+        elif self.width_mult == 1.5:
             self.stage_out_channels = [-1, 24, 176, 352, 704, 1024]
-        elif width_mult == 2.0:
+        elif self.width_mult == 2.0:
             self.stage_out_channels = [-1, 24, 224, 488, 976, 2048]
         else:
             raise ValueError(
@@ -189,21 +189,12 @@ def get_fine_tuning_parameters(model, ft_portion):
 
     else:
         raise ValueError("Unsupported ft_portion: 'complete' or 'last_layer' expected")
-
-#def get_model(width_mult, sample_size, num_classes):
-def get_model(model_args):
-    """
-    Returns the model.
-    """
-    model = ADNIShuffleNetV2(model_args)
-    #model = ADNIShuffleNetV2(sample_size, width_mult, num_classes)
-    return model
    
 
 class LitADNIShuffleNetV2(L.LightningModule):
-    def __init__(self, model_arguments):
+    def __init__(self, **model_arguments):
         super().__init__()
-        self.model = ADNIShuffleNetV2(model_arguments)
+        self.model = ADNIShuffleNetV2(**model_arguments)
         self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
