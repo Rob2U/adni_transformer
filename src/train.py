@@ -7,10 +7,13 @@ import torch
 from time import gmtime, strftime
 from pytorch_lightning.loggers import WandbLogger
 from benchmarks.benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
+
 from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
+
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
 from models.vit import LitADNIViT
+from models.m3t import LitADNIM3T
 from pretraining.maskedAutoencoder import LitMaskedAutoencoder
 from mlparser import ADNIParser
 from defaults import DEFAULTS, MODEL_DEFAULTS
@@ -24,6 +27,8 @@ def get_model_class(model_name):
         return LitADNIShuffleNetV2
     elif model_name == "ViT":
         return LitADNIViT
+    elif model_name == "M3T":
+        return LitADNIM3T
     elif model_name == "MaskedAutoencoder":
         return LitMaskedAutoencoder
 
@@ -155,6 +160,8 @@ if __name__ == "__main__":
         parser = LitADNIShuffleNetV2.add_model_specific_args(parser)
     elif temp_args.model_name == "ViT":
         parser = LitADNIViT.add_model_specific_args(parser)
+    elif temp_args.model_name == "M3T":
+        parser = LitADNIM3T.add_model_specific_args(parser)
     elif temp_args.model_name == "MaskedAutoencoder":
         parser = LitMaskedAutoencoder.add_model_specific_args(parser)
         

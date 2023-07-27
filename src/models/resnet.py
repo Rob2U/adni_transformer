@@ -5,8 +5,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torchmetrics import AUROC, Accuracy, F1Score
 from monai.networks.nets import resnet18
-from defaults import MODEL_DEFAULTS
-import models.summary as summary
+#from defaults import MODEL_DEFAULTS
+#import models.summary as summary
+from . import summary
 
 class ADNIResNet(nn.Module):
     def __init__(self, model_args):
@@ -119,4 +120,4 @@ class LitADNIResNet(L.LightningModule):
         return self._calculate_loss(batch, mode="test")
     
 if __name__ == "__main__":
-    resNet = ADNIResNet(MODEL_DEFAULTS["ResNet18"])
+    resNet = ADNIResNet("cuda")
