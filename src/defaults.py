@@ -41,20 +41,6 @@ DEFAULTS = dict(
         enable_checkpointing=True,
         # "PRETRAINED_PATH" = "/dhc/groups/adni_transformer/checkpoints/benchmarks/LitADNIShuffleNetV2/2023-06-14 09:23:42-epoch=01-val_loss=0.63.ckpt"
     ),
-
-    PRETRAINING = dict(
-        num_frames=32,
-        patch_size=16,
-        t_patch_size=4,
-        pred_t_dim=8,
-        encoder_embed_dim=256,
-        encoder_depth=8,
-        encoder_num_heads=4,
-        decoder_embed_dim=128,
-        decoder_depth=2,
-        decoder_num_heads=4,
-        mlp_ratio=4.0,
-    ),
 )
 
 MODEL_DEFAULTS = dict(
@@ -65,6 +51,17 @@ MODEL_DEFAULTS = dict(
 
     ResNet18=dict(),
     ViT=dict(),
-
+    MaskedAutoencoder = dict(           #TODO: investigate relationship between the different parameters -> why are they not independent from one another?
+        num_frames=64,
+        patch_size=16,
+        t_patch_size=4,
+        pred_t_dim=16,
+        encoder_embed_dim=256,
+        encoder_depth=8,
+        encoder_num_heads=4,
+        decoder_embed_dim=128,
+        decoder_depth=2,
+        decoder_num_heads=4,
+        mlp_ratio=4.0,
+    ),
 )
-

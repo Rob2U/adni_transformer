@@ -11,9 +11,10 @@ from dataset import ADNIDataset, ADNIDatasetRAM, ADNIDataModule
 from models.resnet import LitADNIResNet
 from models.shufflenetV2 import LitADNIShuffleNetV2
 from models.vit import LitADNIViT
-from pretraining import LitMaskedAutoencoder
+from pretraining.maskedAutoencoder import LitMaskedAutoencoder
 from mlparser import ADNIParser
 from defaults import DEFAULTS, MODEL_DEFAULTS
+import torchvision
 
 def get_model_class(model_name):
     """Returns the model class for a given model name."""
@@ -34,16 +35,16 @@ def load_pretrained_model(pretrained_path, model_class):
     return model
 
 def get_model_arguments(model_name, parsed_arguments):
+    
     model_args = {key: parsed_arguments[key] for key in parsed_arguments & MODEL_DEFAULTS[model_name].keys()}
     if model_name == "ResNet18":
         model_args["accelerator"] = parsed_arguments["accelerator"]
-    # elif model_name ==
     model_args["learning_rate"] = parsed_arguments["learning_rate"]
     return model_args
 
 def get_model(model_class, model_arguments):
     """instantiates a model with the given arguments."""
-    model = model_class(model_arguments)
+    model = model_class(**model_arguments)
     return model
 
 def get_logger(arguments):
@@ -102,7 +103,6 @@ def main(args):
         min_epochs=1,
         max_epochs=dict_args["max_epochs"],
         enable_checkpointing=dict_args["enable_checkpointing"],
-        #num_sanity_val_steps=0,
         logger=wandb_logger,
         callbacks=callbacks,
     )
@@ -128,11 +128,15 @@ def main(args):
             trainer.checkpoint_callback.best_model_path
         )
     
-    results = trainer.test(model, data)
-    print(results)
+    if dict_args["test_fraction"] > 0:
+        results = trainer.test(model, data)
+        print(results)
+
+    print("Training finished!")
 
 if __name__ == "__main__":
     # Set seed for reproducibility
+    torchvision.disable_beta_transforms_warning()
     L.seed_everything(42)
 
     # Ensure that all operations are deterministic on GPU (if used) for reproducibility
@@ -151,6 +155,8 @@ if __name__ == "__main__":
         parser = LitADNIShuffleNetV2.add_model_specific_args(parser)
     elif temp_args.model_name == "ViT":
         parser = LitADNIViT.add_model_specific_args(parser)
+    elif temp_args.model_name == "MaskedAutoencoder":
+        parser = LitMaskedAutoencoder.add_model_specific_args(parser)
         
     # add modelname to checkpoint path
     parser.add_argument(

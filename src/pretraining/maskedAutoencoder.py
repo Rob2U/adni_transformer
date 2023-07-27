@@ -4,8 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torchvision
-from pretraining_utils import PatchEmbed, Block
-from defaults import DEFAULTS
+from pretraining.pretraining_utils import PatchEmbed, Block
+from defaults import MODEL_DEFAULTS
 
 class MaskedAutoencoderViT(nn.Module):
     """Masked Autoencoder with VisionTransformer backbone"""
@@ -32,7 +32,7 @@ class MaskedAutoencoderViT(nn.Module):
         trunc_init=False,
         cls_embed=True,
         pred_t_dim=8,
-        **model_args
+        **model_arguments
     ):
         super().__init__()
         self.trunc_init = trunc_init
@@ -42,12 +42,12 @@ class MaskedAutoencoderViT(nn.Module):
         self.t_pred_patch_size = t_patch_size * pred_t_dim // num_frames
         self.in_chans = in_chans
         self.patch_embed = patch_embed(
-            img_size,
-            patch_size,
-            in_chans,
-            encoder_embed_dim,
-            num_frames,
-            t_patch_size,
+            img_size=img_size,
+            patch_size=patch_size,
+            in_chans=in_chans,
+            embed_dim=encoder_embed_dim,
+            num_frames=num_frames,
+            t_patch_size=t_patch_size,
         )
         num_patches = self.patch_embed.num_patches
         input_size = self.patch_embed.input_size
@@ -141,8 +141,6 @@ class MaskedAutoencoderViT(nn.Module):
 
         self.initialize_weights()
 
-        print("model initialized")
-
     def initialize_weights(self):
         if self.cls_embed:
             torch.nn.init.trunc_normal_(self.cls_token, std=0.02)
@@ -235,7 +233,8 @@ class MaskedAutoencoderViT(nn.Module):
 
         # keep the first subset
         ids_keep = ids_shuffle[:, :len_keep]
-        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+        index = ids_keep.unsqueeze(-1).repeat(1, 1, D).to(x.device)
+        x_masked = torch.gather(x, dim=1, index=index)
 
         # generate the binary mask: 0 is keep, 1 is remove
         mask = torch.ones([N, L])
@@ -271,10 +270,11 @@ class MaskedAutoencoderViT(nn.Module):
                 dim=1,
             )
             pos_embed = pos_embed.expand(x.shape[0], -1, -1)
+            index = ids_keep.unsqueeze(-1).repeat(1, 1, pos_embed.shape[2]).to(pos_embed.device)
             pos_embed = torch.gather(
                 pos_embed,
                 dim=1,
-                index=ids_keep.unsqueeze(-1).repeat(1, 1, pos_embed.shape[2]),
+                index=index,
             )
             if self.cls_embed:
                 pos_embed = torch.cat(
@@ -290,10 +290,11 @@ class MaskedAutoencoderViT(nn.Module):
             else:
                 cls_ind = 0
             pos_embed = self.pos_embed[:, cls_ind:, :].expand(x.shape[0], -1, -1)
+            index = ids_keep.unsqueeze(-1).repeat(1, 1, pos_embed.shape[2]).to(pos_embed.device)
             pos_embed = torch.gather(
                 pos_embed,
                 dim=1,
-                index=ids_keep.unsqueeze(-1).repeat(1, 1, pos_embed.shape[2]),
+                index=index,
             )
             if self.cls_embed:
                 pos_embed = torch.cat(
@@ -331,8 +332,9 @@ class MaskedAutoencoderViT(nn.Module):
         mask_tokens = self.mask_token.repeat(N, T * H * W + 0 - x.shape[1], 1)
         x_ = torch.cat([x[:, :, :], mask_tokens], dim=1)  # no cls token
         x_ = x_.view([N, T * H * W, C])
+        index = ids_restore.unsqueeze(-1).repeat(1, 1, x_.shape[2]).to(x_.device)
         x_ = torch.gather(
-            x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x_.shape[2])
+            x_, dim=1, index=index
         )  # unshuffle
         x = x_.view([N, T * H * W, C])
         # append cls token
@@ -395,6 +397,7 @@ class MaskedAutoencoderViT(nn.Module):
         pred: [N, t*h*w, u*p*p*1]
         mask: [N*t, h*w], 0 is keep, 1 is remove,
         """
+
         _imgs = torch.index_select(
             imgs,
             2,
@@ -404,7 +407,7 @@ class MaskedAutoencoderViT(nn.Module):
                 self.pred_t_dim,
             )
             .long()
-            #.to(imgs.device),
+            .to(imgs.device),
         )
         target = self.patchify(_imgs)
         if self.norm_pix_loss:
@@ -414,12 +417,12 @@ class MaskedAutoencoderViT(nn.Module):
 
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
-        mask = mask.view(loss.shape)
+        mask = mask.view(loss.shape).to(loss.device)
 
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         return loss
 
-    def forward(self, imgs, mask_ratio=0.75):
+    def forward(self, imgs, mask_ratio=0.9):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*1]
         loss = self.forward_loss(imgs, pred, mask)
@@ -434,30 +437,26 @@ class LitMaskedAutoencoder(L.LightningModule):
         **model_arguments,
     ):
         super().__init__()
-        self.autoencoder = MaskedAutoencoderViT(
-            model_args=model_arguments,
-        )
+        self.autoencoder = MaskedAutoencoderViT(**model_arguments)
         self.learning_rate = model_arguments["learning_rate"]
+        self.save_hyperparameters()
 
     @staticmethod  # register new arguments here
     def add_model_specific_args(parent_parser):
         """Adds model-specific arguments to the parser."""
 
         parser = parent_parser.add_argument_group("LitMaskedAutoencoder")
-        parser.add_argument("num_frames", type=int, default=DEFAULTS["PRETRAIN"]["num_frames"])
-        parser.add_argument("patch_size", type=int, default=DEFAULTS["PRETRAIN"]["patch_size"])
-        parser.add_argument("t_patch_size", type=int, default=DEFAULTS["PRETRAIN"]["t_patch_size"])
-        parser.add_argument("pred_t_dim", type=int, default=DEFAULTS["PRETRAIN"]["pred_t_dim"])
-        parser.add_argument("encoder_embed_dim", type=int, default=DEFAULTS["PRETRAIN"]["encoder_embed_dim"])
-        parser.add_argument("encoder_depth", type=int, default=DEFAULTS["PRETRAIN"]["encoder_depth"])
-        parser.add_argument("encoder_num_heads", type=int, default=DEFAULTS["PRETRAIN"]["encoder_num_heads"])
-        parser.add_argument("decoder_embed_dim", type=int, default=DEFAULTS["PRETRAIN"]["decoder_embed_dim"])
-        parser.add_argument("decoder_depth", type=int, default=DEFAULTS["PRETRAIN"]["decoder_depth"])
-        parser.add_argument("decoder_num_heads", type=int, default=DEFAULTS["PRETRAIN"]["decoder_num_heads"])
-        parser.add_argument("mlp_ratio", type=float, default=DEFAULTS["PRETRAIN"]["mlp_ratio"])
-        parser.add_argument("norm_layer", type=str, default=DEFAULTS["PRETRAIN"]["norm_layer"])
-        parser.add_argument("norm_pix_loss", type=bool, default=DEFAULTS["PRETRAIN"]["norm_pix_loss"])
-        
+        parser.add_argument("--num_frames", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["num_frames"])
+        parser.add_argument("--patch_size", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["patch_size"])
+        parser.add_argument("--t_patch_size", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["t_patch_size"])
+        parser.add_argument("--pred_t_dim", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["pred_t_dim"])
+        parser.add_argument("--encoder_embed_dim", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["encoder_embed_dim"])
+        parser.add_argument("--encoder_depth", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["encoder_depth"])
+        parser.add_argument("--encoder_num_heads", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["encoder_num_heads"])
+        parser.add_argument("--decoder_embed_dim", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["decoder_embed_dim"])
+        parser.add_argument("--decoder_depth", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["decoder_depth"])
+        parser.add_argument("--decoder_num_heads", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["decoder_num_heads"])
+        parser.add_argument("--mlp_ratio", type=float, default=MODEL_DEFAULTS["MaskedAutoencoder"]["mlp_ratio"])        
         return parent_parser
     
 

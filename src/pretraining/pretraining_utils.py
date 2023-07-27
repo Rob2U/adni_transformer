@@ -13,7 +13,7 @@ class PatchEmbed(nn.Module):
         in_chans=1,
         embed_dim=256,
         # temporal related:
-        frames=32,
+        num_frames=32,
         t_patch_size=4,
     ):
         super().__init__()
@@ -21,30 +21,28 @@ class PatchEmbed(nn.Module):
         patch_size = (patch_size, patch_size)
         assert img_size[1] % patch_size[1] == 0
         assert img_size[0] % patch_size[0] == 0
-        assert frames % t_patch_size == 0
+        assert num_frames % t_patch_size == 0
         num_patches = (
             (img_size[1] // patch_size[1])
             * (img_size[0] // patch_size[0])
-            * (frames // t_patch_size)
+            * (num_frames // t_patch_size)
         )
         self.input_size = (
-            frames // t_patch_size,
+            num_frames // t_patch_size,
             img_size[0] // patch_size[0],
             img_size[1] // patch_size[1],
         )
-        print(
-            f"img_size {img_size} patch_size {patch_size} frames {frames} t_patch_size {t_patch_size}"
-        )
+        
         self.img_size = img_size
         self.patch_size = patch_size
 
-        self.frames = frames
+        self.num_frames = num_frames
         self.t_patch_size = t_patch_size
 
         self.num_patches = num_patches
 
         self.grid_size = img_size[0] // patch_size[0]
-        self.t_grid_size = frames // t_patch_size
+        self.t_grid_size = num_frames // t_patch_size
 
         kernel_size = [t_patch_size] + list(patch_size)
         self.proj = nn.Conv3d(
@@ -56,7 +54,7 @@ class PatchEmbed(nn.Module):
         assert (
             H == self.img_size[0] and W == self.img_size[1]
         ), f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
-        assert T == self.frames
+        assert (T == self.num_frames), f"Input image num_frames ({T}) doesn't match model ({self.num_frames})."
         x = self.proj(x)        # [Batch, Channels, patch_Slices, patch_Height, patch_Width]
         x = x.flatten(3)        # [Batch, Channels, patch_Slices, (patch_Height*patch_Width)]
         x = torch.einsum("ncts->ntsc", x)  # [Batch, patch_Slices, (patch_Width*patch_Heigth), Channels]
@@ -135,10 +133,10 @@ class Block(nn.Module):
         self.mlp = MLPBlock(
             dim,
             mlp_hidden_dim,
-            drop=drop,
+            dropout=drop,
         )
 
     def forward(self, x):
-        x = x + self.attn(self.norm1(x))
+        x = x + self.attn(self.norm1(x), self.norm1(x), self.norm1(x))[0]
         x = x + self.mlp(self.norm2(x))
         return x

@@ -9,7 +9,7 @@ import os
 import numpy as np
 import pandas as pd
 import monai
-from defaults import DEFAULTS
+from defaults import DEFAULTS, MODEL_DEFAULTS
 
 def get_tfms():
     transforms = monai.transforms.Compose([monai.transforms.RandScaleCrop([0.95, 0.95, 0.95]),
@@ -44,7 +44,7 @@ def get_pretrain_tfms():
     pre_tfms = transforms.Compose([
         # add addtitional data augmentation here
         SwitchTemporalAndChannelDims(),
-        transforms.UniformTemporalSubsample(DEFAULTS['PRETRAINING']['num_frames']),
+        transforms.UniformTemporalSubsample(MODEL_DEFAULTS['MaskedAutoencoder']['num_frames']),
         SwitchTemporalAndChannelDims(),
     ]) 
     return pre_tfms
@@ -132,7 +132,7 @@ class PretrainADNIDataset(Dataset):
         self.transform = get_pretrain_tfms() #transform
         self.split = split
 
-        self.classes = ['CN', 'MCI', 'EMCI', 'LMCI', 'SMC'] #remove AD for anomaly detection
+        self.classes = ['AD', 'CN', 'MCI', 'EMCI', 'LMCI', 'SMC'] #remove AD for anomaly detection
         self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
         
@@ -141,7 +141,7 @@ class PretrainADNIDataset(Dataset):
         return len(self.data['DX'])
     
     def __getitem__(self, index):
-        image_uid = self.data.iloc[index][['IMAGEUID']]
+        image_uid = self.data.iloc[index][['IMAGEUID']].item()
         
         img = torch.tensor(self.load_image(image_uid))
         img = (img - img.min()) / (img.max() - img.min()) # normalize
@@ -370,10 +370,10 @@ if __name__ == "__main__":
     sampleNumbers = dict(
         num_ad = len(test_df[test_df['DX'] == 'AD']),
         num_cn = len(test_df[test_df['DX'] == 'CN']),
-        # num_mci = len(test_df[test_df['DX'] == 'MCI']),
-        # num_emci = len(test_df[test_df['DX'] == 'EMCI']),
-        # num_lmci = len(test_df[test_df['DX'] == 'LMCI']),
-        # num_smc = len(test_df[test_df['DX'] == 'SMC']),
+        num_mci = len(test_df[test_df['DX'] == 'MCI']),
+        num_emci = len(test_df[test_df['DX'] == 'EMCI']),
+        num_lmci = len(test_df[test_df['DX'] == 'LMCI']),
+        num_smc = len(test_df[test_df['DX'] == 'SMC']),
     )
     print(all_data.head())
     for type in sampleNumbers:
