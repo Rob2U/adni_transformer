@@ -63,7 +63,6 @@ class ADNIDataset(Dataset):
     
     def __getitem__(self, index):
         lbl, image_uid = self.data.iloc[index][['DX', 'IMAGEUID']]
-        
         lbl = 0 if lbl == 'CN' else 1
         lbl = torch.tensor(lbl)
         
@@ -178,6 +177,51 @@ class ADNIDatasetRAM(Dataset):
         self.data = self.data[self.data.DX.isin(self.classes)] # filter out MCI class
         self.perform_split()
         
+
+class ADNIPretrainingDataset(ADNIDataset):
+    def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform, split='train'):
+        
+        if validation_fraction != 0:
+            raise ValueError('validation_fraction must be 0 for pretraining')
+        
+        self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction        
+        self.transform = transform
+        self.split = split
+        
+        self.classes = ['AD', 'CN', 'MCI', 'EMCI', 'LMCI', 'SMC']
+        
+        self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
+        self.preprocess_metadata() # then preprocess it
+        
+    def __getitem__(self, index):
+        image_uid = self.data.iloc[index][['IMAGEUID']]
+        image_uid = image_uid[0]
+        
+        img = torch.tensor(self.load_image(image_uid))
+        img = (img - img.min()) / (img.max() - img.min()) # normalize
+        # img = img[None, ...]  # add channel dim 
+        
+        return img # here the transforms are applied in the training loop
+    
+    def perform_split(self):
+        np.random.seed(42)
+        data_cn_ad = self.data[self.data.DX.isin(['CN', 'AD'])]
+        patients = data_cn_ad['PTID'].unique()
+        patients = np.random.permutation(patients)
+        
+        if self.split == 'train':
+            patients = patients[:int(patients.shape[0] * self.train_fraction)]
+        elif self.split == 'test':
+            patients = patients[int(patients.shape[0] * (self.train_fraction)):] # leave test_fraction cause unnecessary
+        else:
+            raise ValueError('split must be one of train, val, test')
+            
+        self.data = self.data[self.data.PTID.isin(patients)]
+    
     
 class ADNIDataModule(L.LightningDataModule):
     """ADNI datamodule"""
@@ -208,6 +252,8 @@ class ADNIDataModule(L.LightningDataModule):
             dataset = ADNIDataset
         elif self.dataset == "ADNIRAM":
             dataset = ADNIDatasetRAM
+        elif self.dataset == "ADNIPretraining":
+            dataset = ADNIPretrainingDataset
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
         
@@ -241,6 +287,12 @@ class ADNIDataModule(L.LightningDataModule):
 
 
 if __name__ == "__main__":
+    
+    transforms_monai = get_train_tfms()
+    test_data = torch.randn(1, 128, 128, 128)
+    test_data_out = transforms_monai(test_data)
+    print(test_data_out.shape)
+    
     module = ADNIDataModule(
         dataset=DEFAULTS["DATALOADING"]["dataset"],
         batch_size=DEFAULTS["HYPERPARAMETERS"]["batch_size"],
@@ -256,6 +308,7 @@ if __name__ == "__main__":
     val_ds = module.val_ds
     test_ds = module.test_ds
 
+    test = module.train_ds[0]
 
     train_df = train_ds.data
     val_df = val_ds.data

@@ -5,11 +5,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from monai.networks.nets import ViT
-from src.defaults import MODEL_DEFAULTS
+from defaults import MODEL_DEFAULTS
 from torchmetrics import AUROC, Accuracy, F1Score
 from torchvision.models import resnet18, ResNet18_Weights
-
-from . import summary
 
 # temporary parameter collection
 IN_DIM = 128
@@ -326,4 +324,4 @@ if __name__ == "__main__":
     # summary.summary(splitModule, (C3D, 128, 128, 128), batch_size=32, device=device)
     
     ADNIM3T = ADNIM3T(model_arguments={})
-    summary.summary(ADNIM3T, (1, IN_DIM, IN_DIM, IN_DIM), batch_size=32, device=device)
+    # summary.summary(ADNIM3T, (1, IN_DIM, IN_DIM, IN_DIM), batch_size=32, device=device)

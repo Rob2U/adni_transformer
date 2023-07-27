@@ -20,6 +20,9 @@ class ADNIParser(argparse.ArgumentParser):
         self.hyperparameters.add_argument("--train_fraction", type=float, default=DEFAULTS['HYPERPARAMETERS']['train_fraction'])
         self.hyperparameters.add_argument("--validation_fraction", type=float, default=DEFAULTS['HYPERPARAMETERS']['validation_fraction'])
         self.hyperparameters.add_argument("--test_fraction", type=float, default=DEFAULTS['HYPERPARAMETERS']['test_fraction'])
+        self.hyperparameters.add_argument("--hidden_dim_proj_head", type=int, default=DEFAULTS['HYPERPARAMETERS']['hidden_dim_proj_head'])
+        self.hyperparameters.add_argument("--output_dim_proj_head", type=int, default=DEFAULTS['HYPERPARAMETERS']['output_dim_proj_head'])
+        self.hyperparameters.add_argument("--backbone", type=str, default=DEFAULTS['HYPERPARAMETERS']['backbone'])
 
     def set_dataloading_defaults(self):
         self.dataloading.add_argument("--dataset", type=str, default=DEFAULTS['DATALOADING']['dataset'])

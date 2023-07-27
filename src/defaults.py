@@ -4,17 +4,20 @@
 DEFAULTS = dict(
 
     HYPERPARAMETERS = dict(
-        model_name="ShuffleNetV2",
+        model_name="BYOL",
+        backbone="ViT", # this will be overwritten by the parser / sweep config
         optimizer="Adam",
-        learning_rate=5e-2,
-        batch_size=4,
-        train_fraction=0.7,
-        validation_fraction=0.1,
-        test_fraction=0.2,
+        learning_rate=1e-3,
+        batch_size=32,
+        train_fraction=1.0,
+        validation_fraction=0.0,
+        test_fraction=0.0,
+        hidden_dim_proj_head=1024,
+        output_dim_proj_head=256,
     ),
 
     DATALOADING = dict(
-        dataset="ADNI",
+        dataset="ADNIPretraining",
         data_dir="/dhc/groups/adni_transformer/adni_128_int/",
         meta_file_path="/dhc/groups/adni_transformer/adni_metadata/df_procAlex_MMSE.csv",
         num_workers=4,
@@ -29,7 +32,7 @@ DEFAULTS = dict(
     ),
 
     WANDB = dict(
-        wandb_project="ADNI_parsing",
+        wandb_project="pretrainingOnADNI",
         log_model=True,
         sweep=False,
         benchmark=False,
@@ -51,6 +54,7 @@ MODEL_DEFAULTS = dict(
 
     ResNet18=dict(),
     ViT=dict(),
-
+    SimCLR=dict(),
+    BYOL=dict(),
 )
 

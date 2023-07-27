@@ -20,9 +20,6 @@ class ADNIResNet(nn.Module):
         self.model.add_module("linear", list(resnet.children())[-1])
         self.model.to(model_args["accelerator"])
         self.model.bn1 = torch.nn.Identity()
-        summary.summary(self.model, (1, 128, 128, 128), batch_size=32)
-        
-        ("Number of parameters: ", sum(p.numel() for p in self.model.parameters() if p.requires_grad))
     
 
     def forward(self, x):
