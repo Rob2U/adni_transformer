@@ -1,3 +1,8 @@
+''' implementation of the Masked Autoencoder based on the https://github.com/facebookresearch/mae 
+    (license: https://raw.githubusercontent.com/facebookresearch/mae/be47fef7a727943547afb0c670cf1b26034c3c89/LICENSE)
+    slight modifications where applied to the original code '''
+
+
 import lightning as L
 import torch
 import torch.nn as nn
