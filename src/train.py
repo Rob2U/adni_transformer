@@ -7,7 +7,7 @@ import lightning as L
 import torch
 from time import gmtime, strftime
 from pytorch_lightning.loggers import WandbLogger
-from benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
+# from benchmarks import SamplesPerSecondBenchmark, GpuMetricsBenchmark
 
 from dataset import ADNIDataModule
 
@@ -80,9 +80,10 @@ def get_model_arguments(model_name, parsed_arguments):
             raise ValueError("Backbone not specified for pretraining method.")
 
         model_args["backbone"] = get_backbone_class(parsed_arguments["backbone"])
-        model_args["backbone_out_dim"] = parsed_arguments["backbone_out_dim"]
+        model_args["backbone_out_dim"] = get_backbone_out_dim(parsed_arguments["backbone"])
         model_args["hidden_dim_proj_head"] = parsed_arguments["hidden_dim_proj_head"]
         model_args["output_dim_proj_head"] = parsed_arguments["output_dim_proj_head"]
+        model_args["max_epochs"] = parsed_arguments["max_epochs"]
     
     return model_args
 
@@ -115,16 +116,16 @@ def get_callbacks(arguments):
             save_top_k=5,
             mode="min",
         )
-    samplesPerSecondBenchmark =  SamplesPerSecondBenchmark()
-    gpuMetricsBenchmark = GpuMetricsBenchmark()
+    # samplesPerSecondBenchmark =  SamplesPerSecondBenchmark()
+    # gpuMetricsBenchmark = GpuMetricsBenchmark()
 
     callbacks = [
         checkpoint_callback,
     ]
     # add benchmarking specific callbacks only if neccessary
-    if(arguments["benchmark"]):
-        callbacks.append(samplesPerSecondBenchmark)
-        callbacks.append(gpuMetricsBenchmark)
+    # if(arguments["benchmark"]):
+    #     callbacks.append(samplesPerSecondBenchmark)
+    #     callbacks.append(gpuMetricsBenchmark)
 
     return callbacks
 

@@ -25,8 +25,6 @@ class SimCLR(nn.Module):
 
 def getSIMCLRLoss():
     return NTXentLoss()
-    
-
 
 # build a LightningModule for SimCLR that takes a backbone as input
 class SimCLRFrame(L.LightningModule):
@@ -50,11 +48,8 @@ class SimCLRFrame(L.LightningModule):
         
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
-        lr_scheduler = optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=[100, 150], gamma=0.1
-        )
-        return [optimizer], [lr_scheduler]
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+        return optimizer
 
     def _calculate_loss(self, batch, mode="train"):
         # x is a batch of images

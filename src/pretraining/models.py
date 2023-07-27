@@ -18,18 +18,20 @@ class ShuffleNetBackbone(ADNIShuffleNetV2):
         
 class ViTBackbone(ADNIViT):
     def __init__(self, **model_arguments):
-        super().__init__(**model_arguments)
+        super().__init__(model_arguments)
         
         self.vit = ViT(in_channels=1, img_size=(128,128,128), patch_size=(16,16,16), pos_embed='perceptron', classification=False)
         # output shape of 512x768 -> 768 is the embedding size of ViT Base (may consider using ViT Large)
     
     def forward(self, x):
-        return self.vit(x)[0] # only return the generated cls token (shape of 768)
+        out = self.vit(x)
+        out = out[0][: , 0, :]
+        return out
         
 
 class ResNetBackbone(ADNIResNet):
     def __init__(self, **model_args):
-        super().__init__(**model_args)
+        super().__init__(model_args)
         self.model.linear = nn.Identity()
         # outputs shape of 512
         

@@ -180,8 +180,19 @@ class ADNIDatasetRAM(Dataset):
 
 class ADNIPretrainingDataset(ADNIDataset):
     def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform, split='train'):
-        super().__init__(data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split=split)
-        self.classes = ['CN', 'AD', 'MCI']
+        
+        if validation_fraction != 0:
+            raise ValueError('validation_fraction must be 0 for pretraining')
+        
+        self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction        
+        self.transform = transform
+        self.split = split
+        
+        self.classes = ['AD', 'CN', 'MCI', 'EMCI', 'LMCI', 'SMC']
         
         self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
         self.preprocess_metadata() # then preprocess it
@@ -195,6 +206,21 @@ class ADNIPretrainingDataset(ADNIDataset):
         # img = img[None, ...]  # add channel dim 
         
         return img # here the transforms are applied in the training loop
+    
+    def perform_split(self):
+        np.random.seed(42)
+        data_cn_ad = self.data[self.data.DX.isin(['CN', 'AD'])]
+        patients = data_cn_ad['PTID'].unique()
+        patients = np.random.permutation(patients)
+        
+        if self.split == 'train':
+            patients = patients[:int(patients.shape[0] * self.train_fraction)]
+        elif self.split == 'test':
+            patients = patients[int(patients.shape[0] * (self.train_fraction)):] # leave test_fraction cause unnecessary
+        else:
+            raise ValueError('split must be one of train, val, test')
+            
+        self.data = self.data[self.data.PTID.isin(patients)]
     
     
 class ADNIDataModule(L.LightningDataModule):

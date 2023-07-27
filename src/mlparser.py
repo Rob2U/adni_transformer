@@ -22,7 +22,6 @@ class ADNIParser(argparse.ArgumentParser):
         self.hyperparameters.add_argument("--test_fraction", type=float, default=DEFAULTS['HYPERPARAMETERS']['test_fraction'])
         self.hyperparameters.add_argument("--hidden_dim_proj_head", type=int, default=DEFAULTS['HYPERPARAMETERS']['hidden_dim_proj_head'])
         self.hyperparameters.add_argument("--output_dim_proj_head", type=int, default=DEFAULTS['HYPERPARAMETERS']['output_dim_proj_head'])
-        self.hyperparameters.add_argument("--backbone_out_dim", type=int, default=DEFAULTS['HYPERPARAMETERS']['backbone_out_dim'])
         self.hyperparameters.add_argument("--backbone", type=str, default=DEFAULTS['HYPERPARAMETERS']['backbone'])
 
     def set_dataloading_defaults(self):

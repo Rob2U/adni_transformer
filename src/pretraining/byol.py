@@ -21,7 +21,7 @@ class BYOL(nn.Module):
 
         self.backbone = backbone(**backbone_kwargs)
         self.projection_head = BYOLProjectionHead(backbone_out_dim, hidden_dim_proj_head, output_dim_proj_head)
-        self.prediction_head = BYOLPredictionHead(backbone_out_dim, hidden_dim_proj_head, output_dim_proj_head)
+        self.prediction_head = BYOLPredictionHead(output_dim_proj_head, hidden_dim_proj_head, output_dim_proj_head)
 
         self.backbone_momentum = copy.deepcopy(self.backbone)
         self.projection_head_momentum = copy.deepcopy(self.projection_head)
@@ -30,9 +30,9 @@ class BYOL(nn.Module):
         deactivate_requires_grad(self.projection_head_momentum)
 
     def forward(self, x):
-        y = self.backbone(x).flatten(start_dim=1)
-        z = self.projection_head(y)
-        p = self.prediction_head(z)
+        y = self.backbone(x).flatten(start_dim=1) # output shape is (batch_size, backbone_out_dim)
+        z = self.projection_head(y) # output shape is (batch_size, output_dim_proj_head)
+        p = self.prediction_head(z) # 
         return p
 
     def forward_momentum(self, x):
@@ -49,8 +49,9 @@ def getBYOLLoss():
 class BYOLFrame(L.LightningModule):
     def __init__(self, model_arguments):
         super().__init__()
-        self.model = BYOL(model_arguments)
+        self.model = BYOL(**model_arguments)
         self.learning_rate = model_arguments["learning_rate"]
+        self.max_epochs = model_arguments["max_epochs"]
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
         self.iteration_labels = torch.Tensor([], device="cpu")
@@ -66,18 +67,18 @@ class BYOLFrame(L.LightningModule):
         return parent_parser
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
-        lr_scheduler = optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=[100, 150], gamma=0.1
-        )
-        return [optimizer], [lr_scheduler]
+        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+        return optimizer
 
     def _calculate_loss(self, batch, mode="train"):
         # x is a batch of images
-        momentum_val = cosine_schedule(self.current_epoch, self.hparams.max_epochs, 0.996, 1)
+        momentum_val = cosine_schedule(self.current_epoch, self.max_epochs, 0.996, 1)
         
         x_0 = self.transforms(batch)
-        x_1 = self.transforms(batch)        
+        x_1 = self.transforms(batch)  
+        x_0 = torch.reshape(x_0, (x_0.shape[0], 1, 128, 128, 128))
+        x_1 = torch.reshape(x_1, (x_1.shape[0], 1, 128, 128, 128))
+             
         update_momentum(self.model.backbone, self.model.backbone_momentum, m=momentum_val)
         update_momentum(self.model.projection_head, self.model.projection_head_momentum, m=momentum_val) 
         
