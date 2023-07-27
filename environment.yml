@@ -1,6 +1,7 @@
 name: adni
 channels:
   - nvidia # nvidia channel for cuda packages
+  - conda-forge
   - defaults
 dependencies:
   - python 
@@ -13,6 +14,9 @@ dependencies:
   - torchvision
   # pip dependencies
   - pip
+  - pip:
+    - lightly
+    - nvitop
 
 #  with mamba
   # create env with this file -> mamba env create -f environment.yml
