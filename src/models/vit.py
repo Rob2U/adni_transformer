@@ -5,11 +5,12 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from monai.networks.nets import ViT
-from src.defaults import MODEL_DEFAULTS
+# from src.defaults import MODEL_DEFAULTS
+from defaults import MODEL_DEFAULTS
 from torchmetrics import AUROC, Accuracy, F1Score
 
 class ADNIViT(nn.Module):
-    def __init__(self, model_aruments):
+    def __init__(self, **model_aruments):
         
         super().__init__()
         self.vit = ViT(in_channels=1, img_size=(128,128,128), patch_size=(16,16,16), pos_embed='perceptron', classification=True, num_classes=2, post_activation=False)
@@ -20,9 +21,9 @@ class ADNIViT(nn.Module):
 class LitADNIViT(L.LightningModule):
     """A lit Model."""
 
-    def __init__(self, model_arguments):
+    def __init__(self, **model_arguments):
         super().__init__()
-        self.model = ADNIViT(model_arguments)
+        self.model = ADNIViT(**model_arguments)
         self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
