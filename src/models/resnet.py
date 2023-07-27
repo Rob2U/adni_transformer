@@ -10,7 +10,7 @@ from monai.networks.nets import resnet18
 from . import summary
 
 class ADNIResNet(nn.Module):
-    def __init__(self, model_args):
+    def __init__(self, **model_args):
         
         super().__init__()
         resnet = resnet18(pretrained=False, n_input_channels=1, num_classes=2, spatial_dims=3)
@@ -31,10 +31,10 @@ class ADNIResNet(nn.Module):
 class LitADNIResNet(L.LightningModule):
     """A lit Model."""
 
-    def __init__(self, model_arguments):
+    def __init__(self, **model_arguments):
         super().__init__()
         #self.device = model_args["accelerator"]
-        self.model = ADNIResNet(model_arguments)
+        self.model = ADNIResNet(**model_arguments)
         self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
         self.iteration_preds = torch.Tensor([], device="cpu")
