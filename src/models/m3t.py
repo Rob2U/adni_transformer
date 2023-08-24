@@ -5,7 +5,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from monai.networks.nets import ViT
-from src.defaults import MODEL_DEFAULTS
+# from src.defaults import MODEL_DEFAULTS
+from defaults import MODEL_DEFAULTS
 from torchmetrics import AUROC, Accuracy, F1Score
 from torchvision.models import resnet18, ResNet18_Weights
 

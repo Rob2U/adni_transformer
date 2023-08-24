@@ -44,7 +44,8 @@ def get_pretrain_tfms():
     pre_tfms = transforms.Compose([
         # add addtitional data augmentation here
         SwitchTemporalAndChannelDims(),
-        transforms.UniformTemporalSubsample(MODEL_DEFAULTS['MaskedAutoencoder']['num_frames']),
+        #transforms.UniformTemporalSubsample(MODEL_DEFAULTS['MaskedAutoencoder']['num_frames']),
+        TemporalSubsampling(),
         SwitchTemporalAndChannelDims(),
     ]) 
     return pre_tfms
@@ -54,6 +55,12 @@ class SwitchTemporalAndChannelDims(object):
         img = img.permute(1, 0, 2, 3)   # should be the same image when called twice
         return img
 
+class TemporalSubsampling(object):
+    def __call__(self, img):
+        slices = img.shape[0]
+        start_index = np.random.randint(0, slices - MODEL_DEFAULTS['MaskedAutoencoder']['num_frames'])
+        img = img[start_index:start_index + MODEL_DEFAULTS['MaskedAutoencoder']['num_frames'], :,  :, :]
+        return img
 
 class ADNIDataset(Dataset):
     def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
@@ -131,19 +138,26 @@ class PretrainADNIDataset(Dataset):
         self.test_fraction = test_fraction        
         self.transform = get_pretrain_tfms() #transform
         self.split = split
+        self.ukbb_path1 = "//dhc/groups/adni_transformer/t1_128_int/"
+        self.ukbb_path2 = "//dhc/groups/adni_transformer/t1_128_int/"
+        self.files = pd.DataFrame(columns=['filename', 'location'])
 
         self.classes = ['AD', 'CN', 'MCI', 'EMCI', 'LMCI', 'SMC'] #remove AD for anomaly detection
-        self.data = pd.read_csv(self.meta_file_path) # first of all load metadata
-        self.preprocess_metadata() # then preprocess it
+        self.adni_meta_file = pd.read_csv(self.meta_file_path) # first of all load metadata
+        print(self.files.shape)
+        self.load_adni_files()
+        print(self.files.shape)
+        self.load_ukbb_files()
+        print(self.files.shape)
         
         
     def __len__(self):
-        return len(self.data['DX'])
+        return len(self.files['filename'])
     
     def __getitem__(self, index):
-        image_uid = self.data.iloc[index][['IMAGEUID']].item()
+        filename, location = self.files.iloc[index][['filename', 'location']]
         
-        img = torch.tensor(self.load_image(image_uid))
+        img = torch.tensor(self.load_image(filename, location))
         img = (img - img.min()) / (img.max() - img.min()) # normalize
         img = img[None, ...]  # add channel dim
         
@@ -152,14 +166,13 @@ class PretrainADNIDataset(Dataset):
         else:
             return img
 
-    def load_image(self, image_uid):
-        file = 'file_' + image_uid + '.npy.npz'
-        data_from_file = np.load(os.path.join(self.data_dir, file))
+    def load_image(self, filename, location):
+        data_from_file = np.load(os.path.join(location, filename))
         return data_from_file['arr_0']
     
     def perform_split(self):
         np.random.seed(42)
-        patients = self.data['PTID'].unique()
+        patients = self.adni_meta_file['PTID'].unique()
         patients = np.random.permutation(patients)
         
         if self.split == 'train':
@@ -171,15 +184,25 @@ class PretrainADNIDataset(Dataset):
         else:
             raise ValueError('split must be one of train, val, test')
             
-        self.data = self.data[self.data.PTID.isin(patients)]
+        self.adni_meta_file = self.adni_meta_file[self.adni_meta_file.PTID.isin(patients)]
     
-    def preprocess_metadata(self):
-        npy_files = os.listdir(self.data_dir)
-        img_uid = [file_name.split('.')[0].split('_')[-1] for file_name in npy_files] # all image uids
-        self.data = self.data[self.data.IMAGEUID.isin(img_uid)]
-
-        self.data = self.data[self.data.DX.isin(self.classes)]
+    def load_adni_files(self):
+        adni_files = pd.DataFrame({'filename': os.listdir(self.data_dir), 'location': self.data_dir})
+        adni_files['image_uid'] = adni_files['filename'].apply(lambda name: name.split('.')[0].split('_')[-1])
+        self.adni_meta_file = self.adni_meta_file[self.adni_meta_file['IMAGEUID'].isin(adni_files['image_uid'])]
+        self.adni_meta_file = self.adni_meta_file[self.adni_meta_file['DX'].isin(self.classes)]
         self.perform_split()
+        adni_files = adni_files[adni_files['image_uid'].isin(self.adni_meta_file['IMAGEUID'])]
+        self.files = pd.concat([self.files, adni_files], join='inner')
+
+
+    def load_ukbb_files(self):
+        if self.split == 'train':
+            ukbb1_files = pd.DataFrame({'filename': os.listdir(self.ukbb_path1), 'location': self.ukbb_path1})
+            ukbb2_files = pd.DataFrame({'filename': os.listdir(self.ukbb_path2), 'location': self.ukbb_path2})
+            self.files = pd.concat([self.files, ukbb1_files], join='inner')
+            self.files = pd.concat([self.files, ukbb2_files], join='inner')
+
     
 
 class ADNIDatasetRAM(Dataset):
@@ -287,7 +310,7 @@ class ADNIDataModule(L.LightningDataModule):
         elif self.dataset == "PretrainADNI":
             dataset = PretrainADNIDataset
         else:
-            raise ValueError("dataset must be one of ADNI, ADNIRAM")
+            raise ValueError("dataset must be one of ADNI, ADNIRAM, PretrainADNI")
         
         self.train_ds = dataset(self.data_dir, self.meta_file_path, self.train_fraction, self.validation_fraction, self.test_fraction, train_transform, split='train')
         self.val_ds = dataset(self.data_dir, self.meta_file_path, self.train_fraction, self.validation_fraction, self.test_fraction, test_transform, split='val')

@@ -4,17 +4,18 @@
 DEFAULTS = dict(
 
     HYPERPARAMETERS = dict(
-        model_name="ShuffleNetV2",
+        model_name="MaskedAutoencoder",
         optimizer="Adam",
-        learning_rate=5e-2,
-        batch_size=4,
-        train_fraction=0.7,
-        validation_fraction=0.1,
-        test_fraction=0.2,
+        learning_rate=1e-3,
+        batch_size=50,
+        train_fraction=0.8,
+        validation_fraction=0.0,
+        test_fraction=0.0,
+        train_type="pretrain",
     ),
 
     DATALOADING = dict(
-        dataset="ADNI",
+        dataset="PretrainADNI",
         data_dir="/dhc/groups/adni_transformer/adni_128_int/",
         meta_file_path="/dhc/groups/adni_transformer/adni_metadata/df_procAlex_MMSE.csv",
         num_workers=4,
@@ -23,13 +24,13 @@ DEFAULTS = dict(
     COMPUTATION = dict(
         accelerator="cuda",
         devices=1,
-        max_epochs=2,
-        precision="32",
+        max_epochs=20,
+        precision="16",
         compile=False,
     ),
 
     WANDB = dict(
-        wandb_project="ADNI_parsing",
+        wandb_project="pretrainMaskedAutoencoder",
         log_model=True,
         sweep=False,
         benchmark=False,
@@ -51,17 +52,19 @@ MODEL_DEFAULTS = dict(
 
     ResNet18=dict(),
     ViT=dict(),
-    MaskedAutoencoder = dict(           #TODO: investigate relationship between the different parameters -> why are they not independent from one another?
-        num_frames=64,
-        patch_size=16,
-        t_patch_size=4,
-        pred_t_dim=16,
-        encoder_embed_dim=256,
-        encoder_depth=8,
-        encoder_num_heads=4,
-        decoder_embed_dim=128,
-        decoder_depth=2,
-        decoder_num_heads=4,
-        mlp_ratio=4.0,
+    MaskedAutoencoder = dict(
+        img_size = 128,  # pixels per edge of image   
+        in_chans=1,  # number of input channels       
+        num_frames=16,  # how many of the 128 slices are actually used
+        patch_size=8,  # size of one patch-edge regarding the dimensions not corresponding to slicing
+        t_patch_size=2, # how many slices contribute to one patch
+        encoder_embed_dim=1024, # embedding dimension the decoder uses for each token (i.e each patch)
+        encoder_depth=8, # number of encoder layers
+        encoder_num_heads=8, # number of attention heads in encoder
+        decoder_embed_dim=512, # embedding dimension the decoder uses for each token internally (i.e each patch)
+        decoder_depth=2, # number of decoder layers
+        decoder_num_heads=4, # number of attention heads in decoder
+        mlp_ratio=4.0, # ratio of mlp hidden dim to embedding dim
+        mask_ratio=0.9, # ratio of masked patches
     ),
 )

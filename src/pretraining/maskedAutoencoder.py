@@ -1,5 +1,5 @@
-''' implementation of the Masked Autoencoder based on the https://github.com/facebookresearch/mae 
-    (license: https://raw.githubusercontent.com/facebookresearch/mae/be47fef7a727943547afb0c670cf1b26034c3c89/LICENSE)
+''' implementation of the Masked Autoencoder based on the https://github.com/facebookresearch/mae_st
+    (license: https://raw.githubusercontent.com/facebookresearch/mae_st/27edea1326a8c0655ac0a339afed7effae2b8ba1/LICENSE)
     slight modifications where applied to the original code '''
 
 
@@ -17,34 +17,33 @@ class MaskedAutoencoderViT(nn.Module):
 
     def __init__(
         self,
-        img_size=128,
-        patch_size=16,
-        in_chans=1,
-        encoder_embed_dim=256,
-        encoder_depth=8,
-        encoder_num_heads=4,
-        decoder_embed_dim=128,
-        decoder_depth=2,
-        decoder_num_heads=4,
-        mlp_ratio=4.0,
+        mask_ratio,
+        img_size,
+        in_chans,
+        num_frames,
+        patch_size,
+        t_patch_size,
+        encoder_embed_dim,
+        encoder_depth,
+        encoder_num_heads,
+        decoder_embed_dim,
+        decoder_depth,
+        decoder_num_heads,
+        mlp_ratio,
         norm_layer=nn.LayerNorm,
-        norm_pix_loss=False,
-        num_frames=32,
-        t_patch_size=4,
+        norm_pix_loss=False,        
         patch_embed=PatchEmbed,
         no_qkv_bias=False,
         sep_pos_embed=True,
         trunc_init=False,
         cls_embed=True,
-        pred_t_dim=8,
         **model_arguments
     ):
         super().__init__()
+        self.mask_ratio = mask_ratio
         self.trunc_init = trunc_init
         self.sep_pos_embed = sep_pos_embed
         self.cls_embed = cls_embed
-        self.pred_t_dim = pred_t_dim
-        self.t_pred_patch_size = t_patch_size * pred_t_dim // num_frames
         self.in_chans = in_chans
         self.patch_embed = patch_embed(
             img_size=img_size,
@@ -138,7 +137,7 @@ class MaskedAutoencoderViT(nn.Module):
         self.decoder_norm = norm_layer(decoder_embed_dim)
         self.decoder_pred = nn.Linear(
             decoder_embed_dim,
-            self.t_pred_patch_size * patch_size**2 * in_chans,
+            t_patch_size * patch_size**2 * in_chans,
             bias=True,
         )
 
@@ -192,9 +191,9 @@ class MaskedAutoencoderViT(nn.Module):
         imgs: (N, 3, H, W)
         x: (N, L, patch_size**2 *3)
         """
-        N, _, T, H, W = imgs.shape
+        N, C, T, H, W = imgs.shape
         p = self.patch_embed.patch_size[0]
-        u = self.t_pred_patch_size
+        u = self.patch_embed.t_patch_size
         assert H == W and H % p == 0 and T % u == 0
         h = w = H // p
         t = T // u
@@ -225,8 +224,8 @@ class MaskedAutoencoderViT(nn.Module):
         Per-sample shuffling is done by argsort random noise.
         x: [N, L, D], sequence
         """
-        N, L, D = x.shape  # batch, length, dim
-        len_keep = int(L * (1 - mask_ratio))
+        N, L, D = x.shape  # batch, length, dim     #input is a batch of sequences of Length L, where each element in the sequence has a channel dimension D
+        len_keep = int(L * (1 - mask_ratio))        
 
         noise = torch.rand(N, L)  # noise in [0, 1]
 
@@ -252,13 +251,13 @@ class MaskedAutoencoderViT(nn.Module):
     def forward_encoder(self, x, mask_ratio):
         # embed patches
         x = self.patch_embed(x)
-        N, T, L, C = x.shape
+        N, T, L, C = x.shape # [Batch, num_patches_slices, (num_patches_height *num_patches_width), out_Channels]
 
         x = x.reshape(N, T * L, C)
 
         # masking: length -> length * mask_ratio
         x, mask, ids_restore, ids_keep = self.random_masking(x, mask_ratio)
-        x = x.view(N, -1, C)
+        x = x.view(N, -1, C) # scheint x_masked nicht zu verändern
         # append cls token
         if self.cls_embed:
             cls_token = self.cls_token
@@ -280,7 +279,7 @@ class MaskedAutoencoderViT(nn.Module):
                 pos_embed,
                 dim=1,
                 index=index,
-            )
+            ) #also add the positional embeddings based on the c
             if self.cls_embed:
                 pos_embed = torch.cat(
                     [
@@ -327,20 +326,20 @@ class MaskedAutoencoderViT(nn.Module):
     def forward_decoder(self, x, ids_restore):
         N = x.shape[0]
         T = self.patch_embed.t_grid_size
-        H = W = self.patch_embed.grid_size
+        H = W = self.patch_embed.grid_size  # how many patches should be in the full pathched image
 
         # embed tokens
-        x = self.decoder_embed(x)
+        x = self.decoder_embed(x)   # encoder_embed_dim to decoder_embed_dim
         C = x.shape[-1]
 
         # append mask tokens to sequence
-        mask_tokens = self.mask_token.repeat(N, T * H * W + 0 - x.shape[1], 1)
-        x_ = torch.cat([x[:, :, :], mask_tokens], dim=1)  # no cls token
+        mask_tokens = self.mask_token.repeat(N, T * H * W + 0 - x.shape[1], 1)  #computes how many tokens are missing in the sequences
+        x_ = torch.cat([x[:, :, :], mask_tokens], dim=1)  # no cls token    adds the mask token to fill the sequence to the correct length
         x_ = x_.view([N, T * H * W, C])
         index = ids_restore.unsqueeze(-1).repeat(1, 1, x_.shape[2]).to(x_.device)
         x_ = torch.gather(
             x_, dim=1, index=index
-        )  # unshuffle
+        )  # unshuffle  # restores the original order of the sequences and adds the mask tokens at the correct position; maybe the correct ordering should be done beforehand??
         x = x_.view([N, T * H * W, C])
         # append cls token
         if self.cls_embed:
@@ -383,7 +382,7 @@ class MaskedAutoencoderViT(nn.Module):
         x = self.decoder_norm(x)
 
         # predictor projection
-        x = self.decoder_pred(x)
+        x = self.decoder_pred(x) #scale every patch to the dimension it had in the original image
 
         if requires_t_shape:
             x = x.view([N, T * H * W, -1])
@@ -409,7 +408,7 @@ class MaskedAutoencoderViT(nn.Module):
             torch.linspace(
                 0,
                 imgs.shape[2] - 1,
-                self.pred_t_dim,
+                self.patch_embed.num_frames, # would use all the frames and not just a subset
             )
             .long()
             .to(imgs.device),
@@ -421,18 +420,24 @@ class MaskedAutoencoderViT(nn.Module):
             target = (target - mean) / (var + 1.0e-6) ** 0.5
 
         loss = (pred - target) ** 2
-        loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
+        loss = loss.mean(dim=-1)  # [N, L], mean loss per image-sequence in the batch
         mask = mask.view(loss.shape).to(loss.device)
+        inv_mask = 1 - mask
 
-        loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
+        #loss = ((loss * mask).sum()+1) ** 2 / mask.sum() + (loss * inv_mask).sum() / mask.sum() # mean loss on removed patches
+        #loss = loss.sum()
+        loss = (loss*mask).sum() / mask.sum() # mean loss on removed patches
         return loss
 
-    def forward(self, imgs, mask_ratio=0.9):
+    def forward(self, imgs, mask_ratio=None):
+        if mask_ratio is None:
+            mask_ratio = self.mask_ratio
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*1]
         loss = self.forward_loss(imgs, pred, mask)
         return loss, pred, mask
 
+    
 
 
 class LitMaskedAutoencoder(L.LightningModule):
@@ -451,17 +456,19 @@ class LitMaskedAutoencoder(L.LightningModule):
         """Adds model-specific arguments to the parser."""
 
         parser = parent_parser.add_argument_group("LitMaskedAutoencoder")
+        parser.add_argument("--img_size", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["img_size"])
+        parser.add_argument("--in_chans", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["in_chans"])
         parser.add_argument("--num_frames", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["num_frames"])
         parser.add_argument("--patch_size", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["patch_size"])
         parser.add_argument("--t_patch_size", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["t_patch_size"])
-        parser.add_argument("--pred_t_dim", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["pred_t_dim"])
         parser.add_argument("--encoder_embed_dim", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["encoder_embed_dim"])
         parser.add_argument("--encoder_depth", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["encoder_depth"])
         parser.add_argument("--encoder_num_heads", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["encoder_num_heads"])
         parser.add_argument("--decoder_embed_dim", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["decoder_embed_dim"])
         parser.add_argument("--decoder_depth", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["decoder_depth"])
         parser.add_argument("--decoder_num_heads", type=int, default=MODEL_DEFAULTS["MaskedAutoencoder"]["decoder_num_heads"])
-        parser.add_argument("--mlp_ratio", type=float, default=MODEL_DEFAULTS["MaskedAutoencoder"]["mlp_ratio"])        
+        parser.add_argument("--mlp_ratio", type=float, default=MODEL_DEFAULTS["MaskedAutoencoder"]["mlp_ratio"])
+        parser.add_argument("--mask_ratio", type=float, default=MODEL_DEFAULTS["MaskedAutoencoder"]["mask_ratio"])        
         return parent_parser
     
 
@@ -470,14 +477,14 @@ class LitMaskedAutoencoder(L.LightningModule):
         #optimizer = optim.AdamW(self.parameters(), lr=self.hparams.learning_rate)
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         lr_scheduler = optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=[100, 150], gamma=0.1
+            optimizer, milestones=[15], gamma=0.1
         )
     
         return [optimizer], [lr_scheduler]
 
-    def forward(self, x):
+    def forward(self, x, mask_ratio=None):
         # suppose unifrom frame sampling and random resized cropping have already been applied to the images 
-        return self.autoencoder(x)
+        return self.autoencoder(x, mask_ratio)
     
     
     def _calculate_loss(self, batch, mode="train"):
@@ -496,3 +503,24 @@ class LitMaskedAutoencoder(L.LightningModule):
 
     def test_step(self, batch, batch_idx):
         return self._calculate_loss(batch, mode="test")
+    
+class LitPretrainedVit(L.LightningModule):
+    def __init__(
+        self,
+        pretrainedMae = None,
+        **model_arguments,
+    ):
+        super().__init__()
+        self.encoder = pretrainedMae.autoencoder.encoder
+        self.learning_rate = model_arguments["learning_rate"]
+        self.save_hyperparameters()
+        self.classifier = nn.Linear(1024, 2)
+     
+    def forward(self, x):
+        # scan has the orginal shape of nx1x128x128x128 with n being the batch size
+        x = x.reshape(-1,1,16,128,128) #the batch now also contains the index dimension, because we split the 128 slice tensor into multiple 16 slice tensors
+        latent, masks, ids_restore = self.encoder(x)
+        latent = latent.reshape(-1,1,16,128,128)
+        latent = latent[:, 0]
+        latent = latent.reshape(-1, 8, 16)
+        

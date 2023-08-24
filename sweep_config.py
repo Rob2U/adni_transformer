@@ -28,3 +28,49 @@ SWEEP_CONFIG = dict(
         ),
     ),
 )
+
+PRETRAIN_CONFIG = dict(
+    name="pretrain_mae",
+    project="dev-MaskedAutoencoder",
+    program="src/train.py",
+    method="grid",
+    metric=dict(
+        name="train_loss",
+        goal="minimize",
+    ),
+    parameters=dict(
+        model_name=dict(
+            values=["MaskedAutoencoder"],
+        ),
+        learning_rate=dict(
+            values=[5e-3],
+        ),
+        batch_size=dict(
+            values=[50],
+        ),
+        max_epochs=dict(
+            values=[60],
+        ),
+        train_fraction=dict(
+            values=[1.0],
+        ),
+        validation_fraction=dict(
+            values=[0.0],
+        ),
+        test_fraction=dict(
+            values=[0.0],
+        ),
+        train_type=dict(
+            values=["pretrain"],
+        ),
+        dataset=dict(
+            values=["PretrainADNI"],
+        ),
+        precision=dict(
+            values=["16"],
+        ),
+        wandb_project=dict(
+            values=["dev-MaskedAutoencoder"],
+        ),
+    ),
+)

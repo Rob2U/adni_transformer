@@ -68,11 +68,14 @@ def get_logger(arguments):
 
 def get_callbacks(arguments):
     """Returns a list of callbacks for the model."""
-    
+    if arguments["train_type"] == "pretrain":
+        monitor = "train_loss"
+    else:
+        monitor = "val_loss"
     checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
-            monitor="val_loss",
+            monitor=monitor,
             dirpath=os.path.join(arguments["checkpoint_path"]),
-            filename=strftime("%Y-%m-%d %H:%M:%S", gmtime()) + "-{epoch:02d}-{val_loss:.2f}",
+            filename=strftime("%Y-%m-%d %H:%M:%S", gmtime()) + "-{epoch:02d}-{val_loss:.2f}-{train_loss:.4f}",
             save_top_k=5,
             mode="min",
         )
@@ -93,6 +96,7 @@ def get_callbacks(arguments):
 def main(args):
     """Main function."""
     dict_args = vars(args)
+    print(dict_args["checkpoint_path"])
     wandb_logger = get_logger(dict_args)
     model_name = dict_args["model_name"]
     model_class = get_model_class(model_name)
@@ -122,16 +126,18 @@ def main(args):
         test_fraction=dict_args["test_fraction"],
     )
 
-    
+    if dict_args["train_type"] == "finetune":
+        model = load_pretrained_model(dict_args["pretrained_path"], model_class)
+        model = model.prepare_finetuning()
     if dict_args["pretrained_path"] is not None:
-        model = load_pretrained_model(dict_args["pretrained_path"], model_name)
+        model = load_pretrained_model(dict_args["pretrained_path"], model_class)
     else:
         trainer.fit(model, data)
 
         # load best checkpoint after training
-        model = model_class.load_from_checkpoint(
-            trainer.checkpoint_callback.best_model_path
-        )
+        # model = model_class.load_from_checkpoint(
+        #     trainer.checkpoint_callback.best_model_path
+        # )
     
     if dict_args["test_fraction"] > 0:
         results = trainer.test(model, data)
