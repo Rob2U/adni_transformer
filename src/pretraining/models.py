@@ -20,7 +20,7 @@ class ViTBackbone(ADNIViT):
     def __init__(self, **model_arguments):
         super().__init__(model_arguments)
         
-        self.vit = ViT(in_channels=1, img_size=(128,128,128), patch_size=(16,16,16), pos_embed='perceptron', classification=False)
+        self.vit = ViT(in_channels=1, img_size=(128,128,128), patch_size=(16,16,16), pos_embed='perceptron', classification=False ,hidden_size=1024, mlp_dim=4096, num_heads=16) # ViT Large
         # output shape of 512x768 -> 768 is the embedding size of ViT Base (may consider using ViT Large)
     
     def forward(self, x):

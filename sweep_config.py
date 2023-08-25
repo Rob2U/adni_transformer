@@ -1,6 +1,6 @@
 SWEEP_CONFIG = dict(
-    name="test_sweep",
-    project="pretrainingOnADNI",
+    name="ShuffleNetV2_SimCLR_Sweep",
+    project="ShuffleNetV2_SimCLR_ADNI",
     program="src/train.py",
     method="grid",
     metric=dict(
@@ -21,22 +21,22 @@ SWEEP_CONFIG = dict(
             values=[1e-3],
         ),
         batch_size=dict(
-            #values=[16, 32], # may have to increase this value
-            values=[32],
+            values=[64], # may have to increase this value
+            #values=[4, 8],
         ),
         max_epochs=dict(
-            values=[5],
+            values=[100],
         ),
         benchmark=dict(
-            values=[True],
+            values=[False],
         ),
         hidden_dim_proj_head=dict(
             values=[1024],
             # values=[512, 1024],
         ),
         output_dim_proj_head=dict(
-            values=[256],
-            # values=[128, 256],
+            # values=[256],
+            values=[512],
         ),
     ),
 )

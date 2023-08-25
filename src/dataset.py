@@ -190,7 +190,8 @@ class ADNIPretrainingDataset(ADNIDataset):
         self.validation_fraction = validation_fraction
         self.test_fraction = test_fraction        
         self.transform = transform
-        self.split = split
+        # self.split = split
+        self.split = 'train' # for pretraining we only need the train split
         
         self.classes = ['AD', 'CN', 'MCI', 'EMCI', 'LMCI', 'SMC']
         

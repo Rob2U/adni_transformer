@@ -57,7 +57,7 @@ def get_backbone_out_dim(model_name):
     elif model_name == "ShuffleNetV2":
         return 1024
     elif model_name == "ViT":
-        return 768
+        return 1024
     else:
         raise ValueError(f"Backbone for model {model_name} not implemented.")
         

@@ -4,16 +4,16 @@
 DEFAULTS = dict(
 
     HYPERPARAMETERS = dict(
-        model_name="BYOL",
-        backbone="ViT", # this will be overwritten by the parser / sweep config
+        model_name="SimCLR",
+        backbone="ShuffleNetV2", # this will be overwritten by the parser / sweep config
         optimizer="Adam",
         learning_rate=1e-3,
-        batch_size=32,
+        batch_size=64,
         train_fraction=1.0,
         validation_fraction=0.0,
         test_fraction=0.0,
-        hidden_dim_proj_head=1024,
-        output_dim_proj_head=256,
+        hidden_dim_proj_head=2048,
+        output_dim_proj_head=512,
     ),
 
     DATALOADING = dict(
