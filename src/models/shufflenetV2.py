@@ -221,11 +221,8 @@ class LitADNIShuffleNetV2(L.LightningModule):
         return self.model(x)
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
-        lr_scheduler = optim.lr_scheduler.MultiStepLR(
-            optimizer, milestones=[100, 150], gamma=0.1
-        )
-        return [optimizer], [lr_scheduler]
+        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=1e-5)
+        return optimizer
 
     def _calculate_loss(self, batch, mode="train"):
         imgs, labels = batch

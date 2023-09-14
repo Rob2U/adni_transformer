@@ -33,6 +33,7 @@ class ADNIParser(argparse.ArgumentParser):
     def set_computation_defaults(self):
         self.computation.add_argument("--accelerator", type=str, default=DEFAULTS['COMPUTATION']['accelerator'])
         self.computation.add_argument("--devices", type=int, default=DEFAULTS['COMPUTATION']['devices'])
+        self.computation.add_argument("--strategy", type=str, default=DEFAULTS['COMPUTATION']['strategy'])
         self.computation.add_argument("--max_epochs", type=int, default=DEFAULTS['COMPUTATION']['max_epochs'])
         self.computation.add_argument("--precision", type=str, default=DEFAULTS['COMPUTATION']['precision'])
         self.computation.add_argument("--compile", type=bool, default=DEFAULTS['COMPUTATION']['compile'])

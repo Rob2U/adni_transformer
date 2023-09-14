@@ -1,6 +1,6 @@
 SWEEP_CONFIG = dict(
-    name="ShuffleNetV2_SimCLR_Sweep",
-    project="ShuffleNetV2_SimCLR_ADNI",
+    name="ShuffleNetV2_ADNI_bs32_100eps",
+    project="ShuffleNetV2_ADNI",
     program="src/train.py",
     method="grid",
     metric=dict(
@@ -10,33 +10,37 @@ SWEEP_CONFIG = dict(
     parameters=dict(
         model_name=dict(
             # values=["SimCLR", "BYOL"],
-            values=["SimCLR"],
-        ),
-        backbone=dict(
-            # values=["ResNet", "ShuffleNetV2", "ViT"],
             values=["ShuffleNetV2"],
+        ),
+        width_mult=dict(
+            # values=["ResNet", "ShuffleNetV2", "ViT"],
+            values=[1.0, 2.0],
+            # values=[1.0],
         ),
         learning_rate=dict(
             # values=[1e-2, 1e-3], 
-            values=[1e-3],
+            values=[1e-2, 1e-3, 1e-4], # 1e-3 originally
         ),
         batch_size=dict(
-            values=[64], # may have to increase this value
+            values=[16], # may have to increase this value
             #values=[4, 8],
         ),
         max_epochs=dict(
-            values=[100],
+            values=[25],
         ),
         benchmark=dict(
             values=[False],
         ),
-        hidden_dim_proj_head=dict(
-            values=[1024],
-            # values=[512, 1024],
-        ),
-        output_dim_proj_head=dict(
-            # values=[256],
-            values=[512],
+        # hidden_dim_proj_head=dict(
+        #     values=[1024, 2048],
+        #     # values=[512, 1024],
+        # ),
+        # output_dim_proj_head=dict(
+        #     # values=[256],
+        #     values=[128, 256],
+        # ),
+        dataset=dict(
+            values=["ADNI"],
         ),
     ),
 )

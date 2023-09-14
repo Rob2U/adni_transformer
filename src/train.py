@@ -1,8 +1,12 @@
 """ Train a model. """
 
+
 from datetime import datetime
 from argparse import ArgumentParser
 import os
+import os
+os.environ["NCCL_P2P_DISABLE"] = "1"
+
 import lightning as L
 import torch
 from time import gmtime, strftime
@@ -146,9 +150,11 @@ def main(args):
         model = torch.compile(model)
     callbacks = get_callbacks(dict_args)
     
-    trainer = L.pytorch.Trainer(
+    trainer = L.Trainer(
+        strategy=dict_args["strategy"],
         accelerator=dict_args["accelerator"],
         devices=dict_args["devices"],
+        num_nodes=1,
         precision=dict_args["precision"],
         min_epochs=1,
         max_epochs=dict_args["max_epochs"],
@@ -186,6 +192,8 @@ def main(args):
 if __name__ == "__main__":
     # Set seed for reproducibility
     L.seed_everything(42)
+    # to properly use tensorcores, set 
+    torch.set_float32_matmul_precision('high')
 
     # Ensure that all operations are deterministic on GPU (if used) for reproducibility
     torch.backends.cudnn.deterministic = True

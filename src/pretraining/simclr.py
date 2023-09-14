@@ -9,6 +9,8 @@ import lightning as L
 from torch import optim
 
 from . import transforms
+import time
+import random
 
 
 class SimCLR(nn.Module):
@@ -31,12 +33,11 @@ class SimCLRFrame(L.LightningModule):
     def __init__(self, model_arguments):
         super().__init__()
         self.model = SimCLR(**model_arguments)
+        print("Instantiated SimCLR model")
         self.learning_rate = model_arguments["learning_rate"]
         self.save_hyperparameters()
-        self.iteration_preds = torch.Tensor([], device="cpu")
-        self.iteration_labels = torch.Tensor([], device="cpu")
-        self.criterion = getSIMCLRLoss().to(model_arguments["accelerator"])
-        self.transforms = transforms.get_train_tfms()
+        self.criterion = getSIMCLRLoss().to(self.device)
+        self.transforms = transforms.get_train_tfms
         # see https://lightning.ai/docs/pytorch/1.6.3/common/hyperparameters.html
 
     @staticmethod  # register new arguments here
@@ -48,16 +49,26 @@ class SimCLRFrame(L.LightningModule):
         
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+        # optimizer = optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = optim.SGD(self.parameters(), lr=self.learning_rate, weight_decay=1e-5) #instead of LARS we use SGD
+        # add leraning rate scheduler
+        
         return optimizer
 
     def _calculate_loss(self, batch, mode="train"):
         # x is a batch of images
-        x_0 = self.transforms(batch) 
-        x_1 = self.transforms(batch)
+        transform_seed = int(time.time())
+        random.seed(transform_seed)
+        x_0 = torch.zeros((len(batch), 128, 128, 128))
+        for i in range(0, len(batch)):
+            x_0[i] = self.transforms(seed=random.randint(0, 1000000000))(batch[i])
+            
+        x_1 = torch.zeros((len(batch), 128, 128, 128))
+        for i in range(0, len(batch)):
+            x_1[i] = self.transforms(seed=random.randint(0, 1000000000))(batch[i])
         
-        x_0 = x_0.to(self.device)
-        x_1 = x_1.to(self.device)
+        x_0 = x_0.type_as(batch)
+        x_1 = x_1.type_as(batch)
         
         # add channel dimension
         x_0 = torch.reshape(x_0, (-1, 1, 128, 128, 128))
@@ -74,3 +85,4 @@ class SimCLRFrame(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         return self._calculate_loss(batch, mode="train")
+    

@@ -205,8 +205,10 @@ class ADNIPretrainingDataset(ADNIDataset):
         img = torch.tensor(self.load_image(image_uid))
         img = (img - img.min()) / (img.max() - img.min()) # normalize
         # img = img[None, ...]  # add channel dim 
-        
-        return img # here the transforms are applied in the training loop
+        if self.transform:
+            return self.transform(img)
+        else:
+            return img
     
     def perform_split(self):
         np.random.seed(42)
@@ -237,7 +239,7 @@ class ADNIDataModule(L.LightningDataModule):
         self.train_fraction = train_fraction
         self.validation_fraction = validation_fraction
         self.test_fraction = test_fraction
-        self.transform = transform
+        self.transform = get_train_tfms
         self.split = split
 
     # execute on single GPU
@@ -246,8 +248,13 @@ class ADNIDataModule(L.LightningDataModule):
 
     # execute on every GPU
     def setup(self, stage):
-        test_transform = None
-        train_transform = None
+        if self.transform:
+            test_transform = self.transform() # does not matter for pretraining
+            train_transform = self.transform()
+        else:
+            test_transform = None
+            train_transform = None
+        
         
         if self.dataset == "ADNI":
             dataset = ADNIDataset
@@ -255,6 +262,8 @@ class ADNIDataModule(L.LightningDataModule):
             dataset = ADNIDatasetRAM
         elif self.dataset == "ADNIPretraining":
             dataset = ADNIPretrainingDataset
+        elif self.dataset == "PretrainForADNI":
+            dataset = PretrainADNIDataset
         else:
             raise ValueError("dataset must be one of ADNI, ADNIRAM")
         
@@ -287,6 +296,83 @@ class ADNIDataModule(L.LightningDataModule):
         )
 
 
+class PretrainADNIDataset(Dataset):
+    def __init__(self, data_dir, meta_file_path, train_fraction, validation_fraction, test_fraction, transform=None, split='train'):
+        super().__init__()
+        
+        self.data_dir = data_dir
+        self.meta_file_path = meta_file_path
+        self.train_fraction = train_fraction
+        self.validation_fraction = validation_fraction
+        self.test_fraction = test_fraction        
+        self.transform = transform # get_pretrain_tfms() #transform
+        self.split = split
+        self.ukbb_path1 = "//dhc/groups/adni_transformer/t1_128_int/"
+        self.ukbb_path2 = "//dhc/groups/adni_transformer/t1_128_int/"
+        self.files = pd.DataFrame(columns=['filename', 'location'])
+
+        self.classes = ['AD', 'CN', 'MCI', 'EMCI', 'LMCI', 'SMC'] #remove AD for anomaly detection
+        self.adni_meta_file = pd.read_csv(self.meta_file_path) # first of all load metadata
+        # print(self.files.shape)
+        self.load_adni_files()
+        # print(self.files.shape)
+        self.load_ukbb_files()
+        # print(self.files.shape)
+        print("Dataset size: ", self.files.shape)
+        
+        
+    def __len__(self):
+        return len(self.files['filename'])
+    
+    def __getitem__(self, index):
+        filename, location = self.files.iloc[index][['filename', 'location']]
+        
+        img = torch.tensor(self.load_image(filename, location))
+        img = (img - img.min()) / (img.max() - img.min()) # normalize
+        img = img[None, ...]  # add channel dim
+        
+        if self.transform:
+            return self.transform(img)
+        else:
+            return img
+
+    def load_image(self, filename, location):
+        data_from_file = np.load(os.path.join(location, filename))
+        return data_from_file['arr_0']
+    
+    def perform_split(self):
+        np.random.seed(42)
+        patients = self.adni_meta_file['PTID'].unique()
+        patients = np.random.permutation(patients)
+        
+        if self.split == 'train':
+            patients = patients[:int(patients.shape[0] * self.train_fraction)]
+        elif self.split == 'val':
+            patients = patients[int(patients.shape[0] * self.train_fraction):int(patients.shape[0] * (self.train_fraction + self.validation_fraction))]
+        elif self.split == 'test':
+            patients = patients[int(patients.shape[0] * (self.train_fraction + self.validation_fraction)):] # leave test_fraction cause unnecessary
+        else:
+            raise ValueError('split must be one of train, val, test')
+            
+        self.adni_meta_file = self.adni_meta_file[self.adni_meta_file.PTID.isin(patients)]
+    
+    def load_adni_files(self):
+        adni_files = pd.DataFrame({'filename': os.listdir(self.data_dir), 'location': self.data_dir})
+        adni_files['image_uid'] = adni_files['filename'].apply(lambda name: name.split('.')[0].split('_')[-1])
+        self.adni_meta_file = self.adni_meta_file[self.adni_meta_file['IMAGEUID'].isin(adni_files['image_uid'])]
+        self.adni_meta_file = self.adni_meta_file[self.adni_meta_file['DX'].isin(self.classes)]
+        self.perform_split()
+        adni_files = adni_files[adni_files['image_uid'].isin(self.adni_meta_file['IMAGEUID'])]
+        self.files = pd.concat([self.files, adni_files], join='inner')
+
+
+    def load_ukbb_files(self):
+        if self.split == 'train':
+            ukbb1_files = pd.DataFrame({'filename': os.listdir(self.ukbb_path1), 'location': self.ukbb_path1})
+            ukbb2_files = pd.DataFrame({'filename': os.listdir(self.ukbb_path2), 'location': self.ukbb_path2})
+            self.files = pd.concat([self.files, ukbb1_files], join='inner')
+            self.files = pd.concat([self.files, ukbb2_files], join='inner')
+
 if __name__ == "__main__":
     
     transforms_monai = get_train_tfms()
@@ -295,7 +381,7 @@ if __name__ == "__main__":
     print(test_data_out.shape)
     
     module = ADNIDataModule(
-        dataset=DEFAULTS["DATALOADING"]["dataset"],
+        dataset="PretrainForADNI",
         batch_size=DEFAULTS["HYPERPARAMETERS"]["batch_size"],
         num_workers=DEFAULTS["DATALOADING"]["num_workers"],
         data_dir=DEFAULTS["DATALOADING"]["data_dir"],
@@ -310,13 +396,13 @@ if __name__ == "__main__":
     test_ds = module.test_ds
 
     test = module.train_ds[0]
+    test = get_train_tfms()(test)
+    print(test.shape)
+    print("The dataset has {} samples".format(len(module.train_ds)))
+    
 
-    train_df = train_ds.data
-    val_df = val_ds.data
-    test_df = test_ds.data
-
-    all_data = pd.concat([train_df, val_df, test_df], axis=0)
-    num_ad = len(test_df[test_df['DX'] == 'AD'])
-    num_cn = len(test_df[test_df['DX'] == 'CN'])
-    print(all_data.head())
-    print(f"Number of AD: {num_ad}, Number of CN: {num_cn}")
+    # all_data = pd.concat([train_df, val_df, test_df], axis=0)
+    # num_ad = len(test_df[test_df['DX'] == 'AD'])
+    # num_cn = len(test_df[test_df['DX'] == 'CN'])
+    # print(all_data.head())
+    # print(f"Number of AD: {num_ad}, Number of CN: {num_cn}")

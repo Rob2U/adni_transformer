@@ -8,16 +8,16 @@ DEFAULTS = dict(
         backbone="ShuffleNetV2", # this will be overwritten by the parser / sweep config
         optimizer="Adam",
         learning_rate=1e-3,
-        batch_size=64,
-        train_fraction=1.0,
-        validation_fraction=0.0,
+        batch_size=64, # 64 on 2 GPUs = 128 (a40)
+        train_fraction=0.8,
+        validation_fraction=0.2,
         test_fraction=0.0,
-        hidden_dim_proj_head=2048,
-        output_dim_proj_head=512,
+        hidden_dim_proj_head=1024,
+        output_dim_proj_head=256,
     ),
 
     DATALOADING = dict(
-        dataset="ADNIPretraining",
+        dataset="ADNI",
         data_dir="/dhc/groups/adni_transformer/adni_128_int/",
         meta_file_path="/dhc/groups/adni_transformer/adni_metadata/df_procAlex_MMSE.csv",
         num_workers=4,
@@ -25,14 +25,15 @@ DEFAULTS = dict(
 
     COMPUTATION = dict(
         accelerator="cuda",
-        devices=1,
+        strategy="ddp", # 1 machine with 2 GPUs
+        devices=2,
         max_epochs=2,
         precision="32",
         compile=False,
     ),
 
     WANDB = dict(
-        wandb_project="pretrainingOnADNI",
+        wandb_project="ShuffleNetV2_ADNI",
         log_model=True,
         sweep=False,
         benchmark=False,
